@@ -11,6 +11,19 @@ export interface CartItem {
   imageUrl?: string;
 }
 
+// Extract multiplier from description like "250/10" -> 10
+export const getDescriptionMultiplier = (description: string): number => {
+  if (!description) return 1;
+  const match = description.match(/^\d+\/(\d+)$/);
+  return match ? parseInt(match[1], 10) : 1;
+};
+
+// Calculate item total with description multiplier
+export const calculateItemTotal = (item: CartItem): number => {
+  const multiplier = getDescriptionMultiplier(item.description);
+  return item.price * item.quantity * multiplier;
+};
+
 interface CartContextType {
   items: CartItem[];
   addItem: (product: Omit<CartItem, 'id' | 'quantity'>, quantity?: number) => void;
@@ -59,7 +72,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const subtotal = items.reduce((sum, item) => sum + calculateItemTotal(item), 0);
 
   return (
     <CartContext.Provider

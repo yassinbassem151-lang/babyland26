@@ -1,16 +1,191 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Package, CreditCard, Truck, User, Check } from 'lucide-react';
+import { ArrowRight, Package, CreditCard, Truck, User, Check, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { useCart } from '@/contexts/CartContext';
+import { useCart, calculateItemTotal, getDescriptionMultiplier } from '@/contexts/CartContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import Header from '@/components/Header';
+
+// Old customers data - format: name | shopName | address | phone
+const oldCustomersData = [
+  { name: 'رحاب', shopName: 'بيبي كيوت', address: 'شبين الكوم المنوفيه', phone: '1110912091' },
+  { name: 'Yassin', shopName: 'Bassem', address: 'Giza', phone: '1033110143' },
+  { name: 'محمد سامي', shopName: 'ابوريا', address: 'منوف المنوفيه', phone: '1066826936' },
+  { name: 'ايه وحيد', shopName: 'بافتا بيبي ستور', address: 'بني سويف ش الاباصيري', phone: '1100664891' },
+  { name: 'مصطفى', shopName: 'مستر بيبى', address: 'الواسطى بنى سويف', phone: '1000767629' },
+  { name: 'نادر عادل شوقى', shopName: 'بونيتا', address: 'السويس', phone: '1288077641' },
+  { name: 'مكتب', shopName: 'هاله مصبح', address: 'طهطا بسوهاج', phone: '1032887364' },
+  { name: 'حازم علي', shopName: 'Boss baby', address: 'بني سويف', phone: '1277767981' },
+  { name: 'ابوعمار', shopName: 'ابوعمار', address: 'القاهره النعام عين شمس', phone: '1143695161' },
+  { name: 'حسن سامى', shopName: 'سنتر منار', address: 'كفر الشيخ الحامول', phone: '1067524544' },
+  { name: 'محمد بدر', shopName: 'بامبينو اسيوط', address: 'أسيوط شارع الجمهوريه', phone: '1044315571' },
+  { name: 'الاء احمد', shopName: 'ليندا ستور', address: 'طما سوهاج', phone: '1091490943' },
+  { name: 'محل', shopName: 'ببرونه', address: 'اسكندريه فيلمينج', phone: '1144458758' },
+  { name: 'مريم محمد الشريف', shopName: 'روزي شوبينج', address: 'ارض ادمون اخر شارع جامع عطا', phone: '1002233097' },
+  { name: 'اميره مهدى', shopName: 'baby store', address: 'دمنهور البحيره', phone: '1112178886' },
+  { name: 'يارا الجندى', shopName: 'memo', address: 'دمنهور البحيره', phone: '1552459900' },
+  { name: 'بيلا بورسعيد', shopName: 'بيلا بيبي', address: 'بورسعيد', phone: '201004263363' },
+  { name: 'رضا الدبور', shopName: 'رضا', address: 'شبين الكوم', phone: '201006069835' },
+  { name: 'محمد عثمان', shopName: 'بيبي شوب', address: 'شبين الكوم', phone: '1006999091' },
+  { name: 'زين', shopName: 'مكتب زين', address: 'السادات', phone: '1098242873' },
+  { name: 'محمد مصطفي', shopName: 'هاودي كيدز', address: 'طنطا', phone: '1276264019' },
+  { name: 'احمد اشرف', shopName: 'باندا', address: 'ميت غمر', phone: '1207419368' },
+  { name: 'مصطفى جمعه', shopName: 'هارفي', address: 'عين شمس', phone: '1000072278' },
+  { name: 'منة الله محمود', shopName: 'نيمو اند دوري', address: 'الاسماعيليه', phone: '1003828259' },
+  { name: 'صفا الحسيني', shopName: 'الملكه', address: 'المنصوره', phone: '1022839010' },
+  { name: 'اشرف حمدي فرحات', shopName: 'نيمو كيدز', address: 'بركة السبع', phone: '1095459321' },
+  { name: 'مشير مراد', shopName: 'خوخه كيدز', address: 'سوهاج', phone: '1223271122' },
+  { name: 'محمد نصر', shopName: 'Kidz cloud', address: 'السويس', phone: '1061160243' },
+  { name: 'احمد قنديل', shopName: 'بابلز', address: 'الدلنجات', phone: '1095198342' },
+  { name: 'محمد صبري', shopName: 'كوكوبي', address: 'اسكندرية', phone: '1099997574' },
+  { name: 'احمد تركي', shopName: 'باندا', address: 'ادكو', phone: '1282822433' },
+  { name: 'وليد رياض', shopName: 'بيبي بير', address: 'اكتوبر', phone: '1014446584' },
+  { name: 'عمرو العربى', shopName: 'أي كيدز', address: 'شبين الكوم', phone: '1099930331' },
+  { name: 'توي اند جوي', shopName: 'توي اند جوي', address: 'سوهاج', phone: '201099650552' },
+  { name: 'توفيق عزام', shopName: 'عزام', address: 'السنطة', phone: '1092394604' },
+  { name: 'محمد يونس', shopName: 'محل النونو', address: 'مرسي مطروح', phone: '1555064957' },
+  { name: 'خالد فتحله', shopName: 'خالد', address: 'الهرم', phone: '1093979300' },
+  { name: 'محمود البكري', shopName: 'هاوس كيدز', address: 'كوم حمادة', phone: '201064010012' },
+  { name: 'محمد عوض', shopName: 'ميني مي', address: 'شبراخيت', phone: '1555390385' },
+  { name: 'محمود', shopName: 'كيدز هاوس', address: 'بني سويف', phone: '201006648606' },
+  { name: 'سيد حسين', shopName: 'بيبي ماكس', address: 'الاسماعيليه', phone: '1202908365' },
+  { name: 'نهي هاني', shopName: 'كيوت بيبي', address: 'السادات', phone: '1012478222' },
+  { name: 'بطوط', shopName: 'بطوط', address: 'ادكو', phone: '1114390093' },
+  { name: 'ايمن مكرم', shopName: 'كيو كيو', address: 'المحله', phone: '1200400259' },
+  { name: 'محمد عاطف', shopName: 'بيبي ستور', address: 'اسيوط', phone: '1003319060' },
+  { name: 'احمد شعبان', shopName: 'بيبي زون', address: 'سمنود', phone: '1222599918' },
+  { name: 'حنان علي محمود', shopName: 'هاي بيبي', address: 'عباس العقاد', phone: '1152382811' },
+  { name: 'دعاء رزق', shopName: 'سنتر روفانا', address: 'ابو حمص', phone: '1229273723' },
+  { name: 'فرج', shopName: 'فرج', address: 'مطروح', phone: '1064308555' },
+  { name: 'بدر', shopName: 'بيبي هاوس', address: 'فيصل', phone: '1148721695' },
+  { name: 'Alaa Ahmed Younis', shopName: 'زيزي وبطوط', address: 'العاشر من رمضان', phone: '1017707188' },
+  { name: 'عمرو', shopName: 'كوين حلوان', address: 'حلوان', phone: '1229792040' },
+  { name: 'محمد الهادي', shopName: 'محل الهادي', address: 'ساحل سليم', phone: '1274032810' },
+  { name: 'سمر جادالله', shopName: 'سمر جادالله', address: 'دمنهور', phone: '1010555273' },
+  { name: 'بوي اند جيرل', shopName: 'بوي', address: 'طنطا', phone: '1091534618' },
+  { name: 'ياسمين ممدوح', shopName: 'بنات في بنات', address: 'العاشر', phone: '1027997377' },
+  { name: 'محمد غزال', shopName: 'غزال كيدز', address: 'شبين الكوم', phone: '100038088' },
+  { name: 'احمد ابراهيم', shopName: 'بوتيك', address: 'الواسطى', phone: '1153780262' },
+  { name: 'رباب محمد', shopName: 'اليس كيدز', address: 'اسيوط', phone: '1060424210' },
+  { name: 'Magdy elsayed', shopName: 'X large', address: 'ههيا', phone: '1221310321' },
+  { name: 'محمد وحيد', shopName: 'وحيد', address: 'منوف', phone: '1000256097' },
+  { name: 'محمد صبحي', shopName: 'براندس كيدز', address: 'كوم حماده', phone: '1016557515' },
+  { name: 'شيماء السيد', shopName: 'شيماء سيد', address: 'مشتول', phone: '1017279449' },
+  { name: 'احمد خالد محمود', shopName: 'بيو بيبي', address: 'التل الكبير', phone: '1116024760' },
+  { name: 'احمد جاب الله', shopName: 'كيدز ايلاند', address: 'الفيوم', phone: '1004746474' },
+  { name: 'عبدالله عماد', shopName: 'Cutebaby', address: 'مدينة نصر', phone: '1025200546' },
+  { name: 'عمر جمال', shopName: 'توينز كيدز', address: 'طوخ', phone: '1204000357' },
+  { name: 'علي راضي', shopName: 'سلام للنونو', address: 'كفر الدوار', phone: '1227210107' },
+  { name: 'آية اشرف', shopName: 'كيدز ستور', address: 'الباجور', phone: '1061594227' },
+  { name: 'احمد شهاب', shopName: 'بامبينو', address: 'كفر الشيخ', phone: '1002025514' },
+  { name: 'محمد ناجي', shopName: 'بيميو كيدز', address: 'المنصوره', phone: '1065100011' },
+  { name: 'اسلام الطباخ', shopName: 'زين ستور', address: 'اشمون', phone: '1021509303' },
+  { name: 'شبر ونص', shopName: 'شبر ونص', address: 'القوصيه', phone: '1283296896' },
+  { name: 'هبة جمال', shopName: 'وندرلاند', address: 'حلوان', phone: '1095453144' },
+  { name: 'اماني عثمان', shopName: 'مامي اند مي', address: 'ابنوب', phone: '1104752498' },
+  { name: 'أمير يسري', shopName: 'مارشميلو', address: 'المنيا', phone: '1288676787' },
+  { name: 'ببك', shopName: 'ببك', address: 'ملوي', phone: '1014499249' },
+  { name: 'دعاء عبدالرحيم', shopName: 'ميكسات', address: 'الشرقيه', phone: '1014875785' },
+  { name: 'Ahmed Mahmoud', shopName: 'Dokkan Istanbul', address: 'حلوان', phone: '1099122499' },
+  { name: 'منال جمال', shopName: 'كركر', address: 'المنيا', phone: '1229712232' },
+  { name: 'احمد المرسي', shopName: 'نينجا', address: 'المنيا', phone: '1066501558' },
+  { name: 'اسامه حبيب', shopName: 'ركن البيبي', address: 'بلبيس', phone: '1022150374' },
+  { name: 'محمود', shopName: 'لا بيبي', address: 'البحيره', phone: '1000286165' },
+  { name: 'ايه صلاح', shopName: 'ليتل ستار', address: 'الزقازيق', phone: '1112348825' },
+  { name: 'معاذ سليمان', shopName: 'محلات معاذ', address: 'بركة السبع', phone: '1206941920' },
+  { name: 'عبدالرحمن', shopName: 'بومبا كيدز', address: 'الاقصر', phone: '1006887484' },
+  { name: 'Olamahmoud', shopName: 'Loka', address: 'حدائق الاهرام', phone: '1028905511' },
+  { name: 'محمد فتحي', shopName: 'جوي', address: 'طوخ', phone: '1270709913' },
+  { name: 'رودي', shopName: 'رودي', address: 'بنها', phone: '1287560791' },
+  { name: 'حالنا نونو', shopName: 'حالنا نونو', address: 'فيصل', phone: '1150006939' },
+  { name: 'Sally Salama', shopName: 'Kitty kids', address: 'بيلا', phone: '1014449114' },
+  { name: 'بيست كيدز', shopName: 'بيست كيدز', address: 'اسكندريه', phone: '1276636443' },
+  { name: 'احمد قاسم', shopName: 'كيدز هاوس', address: 'اسكندريه', phone: '1007598600' },
+  { name: 'محمد رجب', shopName: 'بامبينو فيصل', address: 'فيصل', phone: '1148825514' },
+  { name: 'بيتر مجدي', shopName: 'لولي', address: 'العبور', phone: '1206086250' },
+  { name: 'ندي عادل', shopName: 'لولي ماركت كيدز', address: 'طنطا', phone: '1002426268' },
+  { name: 'خالد الشريف', shopName: 'كيدز زون', address: 'الفيوم', phone: '1005522303' },
+  { name: 'احمد', shopName: 'ستار كيدز', address: 'الاسماعيليه', phone: '1273333008' },
+  { name: 'أيمن السعدني', shopName: 'زياد ستور', address: 'العياط', phone: '1145535506' },
+  { name: 'محمد محمد الغنيمي', shopName: 'نيمو', address: 'العبور', phone: '1207507606' },
+  { name: 'حسن', shopName: 'محل تويتي', address: 'مطروح', phone: '1090801133' },
+  { name: 'اكرامي رشاد', shopName: 'كتاكيت', address: 'السنطة', phone: '1206500529' },
+  { name: 'احمد الوكيل', shopName: 'طيور الجنة', address: 'الشهداء', phone: '1001127377' },
+  { name: 'وائل وهدان', shopName: 'اطفالنا', address: 'المنوفيه', phone: '201005260045' },
+  { name: 'ثابت السعدي', shopName: 'الورده الراقيه', address: 'القاهره', phone: '1288277711' },
+  { name: 'السيد الدمراوي', shopName: 'ورد ستور', address: 'المحله', phone: '1003712351' },
+  { name: 'محمد ونيس', shopName: 'كيدز اوسيم', address: 'الجيزه', phone: '1002300835' },
+  { name: 'احمد', shopName: 'محل شنشن', address: 'دمياط', phone: '1000227785' },
+  { name: 'دينا السعيد', shopName: 'كيدز شوب', address: 'دمنهور', phone: '1021590990' },
+  { name: 'محمد معتز', shopName: 'سنتر الدار', address: 'شبين الكوم', phone: '1093710351' },
+  { name: 'اسلام مجدي', shopName: 'لوجو كيدز', address: 'قنا', phone: '1098050062' },
+  { name: 'الاء محمد', shopName: 'بيبي فاشون', address: 'القصير', phone: '1097766176' },
+  { name: 'عبدالله قاسم', shopName: 'ضي القمر', address: 'ادكو', phone: '1028838465' },
+  { name: 'بارني', shopName: 'Barny', address: 'طنطا', phone: '201023024015' },
+  { name: 'مصطفى البلاسي', shopName: 'بيبي كير', address: 'منيا القمح', phone: '1060101018' },
+  { name: 'لينا يحي', shopName: 'Up and up', address: 'الرحاب', phone: '1129000876' },
+  { name: 'محمد كمال', shopName: 'Online bubbles', address: 'المعادي', phone: '1126948375' },
+  { name: 'احمد سمير', shopName: 'توب شوب', address: 'دكرنس', phone: '1000845538' },
+  { name: 'Khaled', shopName: 'Kidia', address: 'اسكندريه', phone: '1285405905' },
+  { name: 'مازن محمود', shopName: 'Just brand', address: 'دمياط', phone: '1020106700' },
+  { name: 'جورج ميخائيل', shopName: 'لولي بوب', address: 'المنيا', phone: '1281288208' },
+  { name: 'بامبينو', shopName: 'بامبينو', address: 'الاقصر', phone: '1221045933' },
+  { name: 'منه مصطفى', shopName: 'لايف كير', address: 'بورسعيد', phone: '1060255200' },
+  { name: 'هاني عزالدين', shopName: 'كيدزى', address: 'اسكندريه', phone: '1013510142' },
+  { name: 'اسلام محمد', shopName: 'ستار كيدس', address: 'شوكت', phone: '213540014724' },
+  { name: 'عبدالرحمن محمد', shopName: 'ملائكه الرحمه', address: 'اسوان', phone: '1111167898' },
+  { name: 'Mohamed Adel', shopName: 'Lolo kids', address: 'الصف الجيزه', phone: '1028716464' },
+  { name: 'عدي', shopName: 'بوابه النيل', address: 'فلسطين', phone: '972586722962' },
+  { name: 'حنان', shopName: 'سكريم كيدز', address: 'الف مسكن', phone: '1005697545' },
+  { name: 'هايدي ماهر', shopName: 'بلوبينك', address: 'المنيا الجديده', phone: '120838728' },
+  { name: 'محمود عبد المنعم', shopName: 'يتربى في عزك', address: 'كفر الدوار', phone: '1223283191' },
+  { name: 'Mohamed Hassan', shopName: 'Plantos store', address: 'اسكندريه', phone: '1287296026' },
+  { name: 'شيماء ابو زيد', shopName: 'فانيلا', address: 'ميت غمر', phone: '1112570511' },
+  { name: 'مكتب اسامه عزيز', shopName: 'Dragon', address: 'وسط البلد', phone: '1274242477' },
+  { name: 'شريف فكري', shopName: 'فلامنكو', address: 'بنها', phone: '201005614440' },
+  { name: 'سيفورا', shopName: 'سيفورا', address: 'امبابه', phone: '1093979300' },
+  { name: 'زينب فرج', shopName: 'دنيا الاطفال', address: 'القناطر', phone: '1122911267' },
+  { name: 'سندريلا المنصوره', shopName: 'سندريلا', address: 'المنصوره', phone: '1020060039' },
+  { name: 'متاريك', shopName: 'متاريك', address: 'دمياط', phone: '1010051265' },
+  { name: 'بلو بي', shopName: 'نانسي بلو بي', address: 'المنصوره', phone: '1023834805' },
+  { name: 'بلال عادل', shopName: 'بومبا وميمونه', address: 'الزقازيق', phone: '1140177229' },
+  { name: 'مكتب ديزني', shopName: 'سالي سعد', address: 'شربين', phone: '107589842' },
+  { name: 'نيروز', shopName: 'ادم استور', address: 'اكتوبر', phone: '201004675099' },
+  { name: 'محمد طاهر', shopName: 'الحرمين', address: 'ميت غمر', phone: '1112570511' },
+  { name: 'السباخي', shopName: 'السباخي', address: 'ايتاي البارود', phone: '201060203960' },
+  { name: 'خالد', shopName: 'الجزائر', address: 'الجزائر', phone: '213550152068' },
+  { name: 'بوي اند جيريل', shopName: 'محمود', address: 'المنصوره', phone: '1002671347' },
+  { name: 'عبدالرحمن ناصر', shopName: 'N Shop', address: 'المنصوره', phone: '1009761008' },
+  { name: 'ام كريم', shopName: 'كوكي ومالك', address: 'المرج', phone: '1159524367' },
+  { name: 'كمال فتحي', shopName: 'بيبي كيمو', address: 'امبابه', phone: '1113134330' },
+  { name: 'احمد شوقي', shopName: 'ملايكه', address: 'الشهداء', phone: '1000349492' },
+  { name: 'عبدالعزيز الحداد', shopName: 'شيك كيدز', address: 'بركة السبع', phone: '1001105426' },
+  { name: 'محمد سعد', shopName: 'فرصه', address: 'الزقازيق', phone: '1017001155' },
+  { name: 'ابراهيم حلمي', shopName: 'بابلز', address: 'اكتوبر', phone: '1096419747' },
+  { name: 'سالى سامح', shopName: 'الزهراء', address: 'الاسماعيليه', phone: '1279970144' },
+  { name: 'احمد محروس', shopName: 'كيتي', address: 'ادكو', phone: '1207163889' },
+  { name: 'محمد سلطان', shopName: 'كيزو', address: 'منوف', phone: '1000094497' },
+  { name: 'مصطفى', shopName: 'لعب عيال', address: 'الاسماعيليه', phone: '1150393635' },
+  { name: 'محمود جمال عبدالمولي', shopName: 'سنتر اليسر', address: 'النوباريه', phone: '1004470660' },
+  { name: 'محمود دياب', shopName: 'تفاحه كيدز', address: 'السيده زينب', phone: '1113999777' },
+  { name: 'محمد ابراهيم الدسوقي', shopName: 'مول العائلة', address: 'العامرية', phone: '1227595322' },
+  { name: 'البخاري', shopName: 'البخاري', address: 'المنصوره', phone: '1004880730' },
+  { name: 'عبد المسيح', shopName: 'نيو بيبي', address: 'المعادي', phone: '1223690309' },
+  { name: 'ابوالحسن', shopName: 'محمود ابو الحسن', address: 'السيده زينب', phone: '1006707813' },
+  { name: 'احمد فرج', shopName: 'مول الحبيب', address: 'قنا', phone: '1271875337' },
+  { name: 'محمد صادق', shopName: 'بامبينو', address: 'الاسماعيليه', phone: '1200766332' },
+  { name: 'ميلاد سمير', shopName: 'لالا لاند', address: 'عين شمس', phone: '1211892269' },
+  { name: 'الحج محمد عبد الهادي', shopName: 'احمد عبد الهادي', address: 'المنصوره', phone: '1002715559' },
+  { name: 'كيرلس وهبه', shopName: 'كوكو واو', address: 'التجمع الخامس', phone: '1127744343' },
+  { name: 'دكتوره حفصه ابراهيم', shopName: 'د بيبي', address: 'القناطر', phone: '1066067724' },
+  { name: 'احمد خليل', shopName: 'بيبي شوب', address: 'اوسيم', phone: '1129794935' },
+];
 
 const depositMethods = [
   { value: 'cash', label: 'كاش' },
@@ -23,7 +198,6 @@ const Checkout = () => {
   const { items, subtotal, clearCart } = useCart();
   const [loading, setLoading] = useState(false);
   const [isOldCustomer, setIsOldCustomer] = useState(false);
-  const [existingCustomers, setExistingCustomers] = useState<any[]>([]);
   const [orderNumber, setOrderNumber] = useState<number | null>(null);
 
   const [formData, setFormData] = useState({
@@ -37,31 +211,19 @@ const Checkout = () => {
     depositAmount: 0,
   });
 
-  const loadExistingCustomers = async () => {
-    const { data } = await supabase
-      .from('customers')
-      .select('*')
-      .eq('is_new', false)
-      .order('name');
-    if (data) setExistingCustomers(data);
-  };
-
-  const handleOldCustomerToggle = async () => {
-    if (!isOldCustomer) {
-      await loadExistingCustomers();
-    }
+  const handleOldCustomerToggle = () => {
     setIsOldCustomer(!isOldCustomer);
   };
 
-  const handleCustomerSelect = (customerId: string) => {
-    const customer = existingCustomers.find(c => c.id === customerId);
+  const handleOldCustomerSelect = (index: string) => {
+    const customer = oldCustomersData[parseInt(index)];
     if (customer) {
       setFormData({
         ...formData,
         name: customer.name,
-        shopName: customer.shop_name || '',
+        shopName: customer.shopName,
         phone: customer.phone,
-        address: customer.address || '',
+        address: customer.address,
       });
     }
   };
@@ -235,17 +397,24 @@ const Checkout = () => {
                 <p className="text-center text-muted-foreground py-8">السلة فارغة</p>
               ) : (
                 <>
-                  {items.map((item) => (
-                    <div key={item.id} className="flex justify-between items-center py-2 border-b border-border last:border-0">
-                      <div>
-                        <p className="font-medium">{item.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {item.quantity} × {item.price} ج.م
-                        </p>
+                  {items.map((item) => {
+                    const multiplier = getDescriptionMultiplier(item.description);
+                    const itemTotal = calculateItemTotal(item);
+                    return (
+                      <div key={item.id} className="flex justify-between items-center py-2 border-b border-border last:border-0">
+                        <div>
+                          <p className="font-medium">{item.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {multiplier > 1 
+                              ? `${item.quantity} × ${item.price} × ${multiplier} ج.م`
+                              : `${item.quantity} × ${item.price} ج.م`
+                            }
+                          </p>
+                        </div>
+                        <span className="font-bold">{itemTotal.toFixed(2)} ج.م</span>
                       </div>
-                      <span className="font-bold">{(item.quantity * item.price).toFixed(2)} ج.م</span>
-                    </div>
-                  ))}
+                    );
+                  })}
                   <div className="pt-4 space-y-2">
                     <div className="flex justify-between">
                       <span>الإجمالي الفرعي</span>
@@ -288,17 +457,17 @@ const Checkout = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {isOldCustomer && existingCustomers.length > 0 && (
+                {isOldCustomer && (
                   <div>
                     <Label>اختر عميل</Label>
-                    <Select onValueChange={handleCustomerSelect}>
+                    <Select onValueChange={handleOldCustomerSelect}>
                       <SelectTrigger>
                         <SelectValue placeholder="اختر من العملاء السابقين" />
                       </SelectTrigger>
-                      <SelectContent>
-                        {existingCustomers.map((customer) => (
-                          <SelectItem key={customer.id} value={customer.id}>
-                            {customer.name} - {customer.phone}
+                      <SelectContent className="max-h-[300px]">
+                        {oldCustomersData.map((customer, index) => (
+                          <SelectItem key={index} value={index.toString()}>
+                            {customer.name} - {customer.shopName}
                           </SelectItem>
                         ))}
                       </SelectContent>
