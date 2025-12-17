@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { Trash2, Plus, Minus, ShoppingBag, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useCart } from '@/contexts/CartContext';
+import { useCart, calculateItemTotal, getDescriptionMultiplier } from '@/contexts/CartContext';
 
 const CartPreview = () => {
   const { items, removeItem, updateQuantity, subtotal, totalItems } = useCart();
@@ -55,7 +55,13 @@ const CartPreview = () => {
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-muted-foreground">#{item.code}</p>
                 <h4 className="font-medium truncate">{item.name}</h4>
-                <p className="text-sm font-bold text-primary">{item.price} ج.م</p>
+                <p className="text-sm text-muted-foreground">{item.description}</p>
+                <p className="text-sm font-bold text-primary">
+                  {getDescriptionMultiplier(item.description) > 1 
+                    ? `${item.price} × ${getDescriptionMultiplier(item.description)} = ${calculateItemTotal({ ...item, quantity: 1 })} ج.م`
+                    : `${item.price} ج.م`
+                  }
+                </p>
               </div>
               <div className="flex flex-col items-end justify-between">
                 <Button
