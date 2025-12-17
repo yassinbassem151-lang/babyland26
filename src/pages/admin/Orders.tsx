@@ -51,6 +51,22 @@ const statusColors: Record<string, string> = {
   cancelled: 'bg-red-100 text-red-800',
 };
 
+// Helper to get description multiplier (e.g., "250/10" => 10)
+const getDescriptionMultiplier = (description: string | null): number => {
+  if (!description) return 1;
+  const match = description.match(/(\d+)\/(\d+)/);
+  if (match) {
+    return parseInt(match[2]);
+  }
+  return 1;
+};
+
+// Calculate item total with description multiplier
+const calculateItemTotal = (item: OrderItem): number => {
+  const multiplier = getDescriptionMultiplier(item.product_description);
+  return item.price * item.quantity * multiplier;
+};
+
 const Orders = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -154,8 +170,8 @@ const Orders = () => {
       setSelectedOrder({ ...selectedOrder, items });
       setAddProductCode('');
       
-      // Update order totals
-      const newSubtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      // Update order totals with description multiplier
+      const newSubtotal = items.reduce((sum, item) => sum + calculateItemTotal(item), 0);
       await supabase.from('orders').update({
         subtotal: newSubtotal,
         total: newSubtotal - selectedOrder.deposit_amount,
@@ -175,7 +191,8 @@ const Orders = () => {
       const items = await loadOrderItems(selectedOrder.id);
       setSelectedOrder({ ...selectedOrder, items });
       
-      const newSubtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      // Update order totals with description multiplier
+      const newSubtotal = items.reduce((sum, item) => sum + calculateItemTotal(item), 0);
       await supabase.from('orders').update({
         subtotal: newSubtotal,
         total: newSubtotal - selectedOrder.deposit_amount,
@@ -195,7 +212,8 @@ const Orders = () => {
       const items = await loadOrderItems(selectedOrder.id);
       setSelectedOrder({ ...selectedOrder, items });
       
-      const newSubtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      // Update order totals with description multiplier
+      const newSubtotal = items.reduce((sum, item) => sum + calculateItemTotal(item), 0);
       await supabase.from('orders').update({
         subtotal: newSubtotal,
         total: newSubtotal - selectedOrder.deposit_amount,
@@ -207,6 +225,10 @@ const Orders = () => {
 
   const generateInvoice = (order: Order) => {
     if (!order.items) return;
+
+    // Calculate totals with description multiplier
+    const calculatedSubtotal = order.items.reduce((sum, item) => sum + calculateItemTotal(item), 0);
+    const calculatedTotal = calculatedSubtotal - order.deposit_amount;
 
     const invoiceHtml = `
       <!DOCTYPE html>
@@ -256,29 +278,27 @@ const Orders = () => {
             ${order.items.map(item => {
               // Parse description for quantity calculation (e.g., "200/20" means pack of 20)
               let displayQuantity = item.quantity;
-              if (item.product_description) {
-                const match = item.product_description.match(/(\d+)\/(\d+)/);
-                if (match) {
-                  const packSize = parseInt(match[2]);
-                  displayQuantity = item.quantity * packSize;
-                }
+              const multiplier = getDescriptionMultiplier(item.product_description);
+              if (multiplier > 1) {
+                displayQuantity = item.quantity * multiplier;
               }
+              const itemTotal = calculateItemTotal(item);
               return `
                 <tr>
                   <td>${item.product_code}</td>
                   <td>${item.product_name}</td>
                   <td>${item.price} ج.م</td>
                   <td>${displayQuantity}</td>
-                  <td>${(item.price * item.quantity).toFixed(2)} ج.م</td>
+                  <td>${itemTotal.toFixed(2)} ج.م</td>
                 </tr>
               `;
             }).join('')}
           </tbody>
         </table>
         <div class="totals">
-          <p>الإجمالي الفرعي: ${order.subtotal.toFixed(2)} ج.م</p>
+          <p>الإجمالي الفرعي: ${calculatedSubtotal.toFixed(2)} ج.م</p>
           ${order.deposit_amount > 0 ? `<p>العربون (${order.deposit_method}): -${order.deposit_amount.toFixed(2)} ج.م</p>` : ''}
-          <p class="total">المطلوب: ${order.total.toFixed(2)} ج.م</p>
+          <p class="total">المطلوب: ${calculatedTotal.toFixed(2)} ج.م</p>
         </div>
       </body>
       </html>
@@ -392,26 +412,37 @@ const Orders = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {selectedOrder.items?.map((item) => (
-                      <tr key={item.id} className="border-t">
-                        <td className="p-3">
-                          <p className="font-medium">{item.product_name}</p>
-                          <p className="text-xs text-muted-foreground">#{item.product_code}</p>
-                        </td>
-                        <td className="p-3">{item.price} ج.م</td>
-                        <td className="p-3">{item.quantity}</td>
-                        <td className="p-3">{(item.price * item.quantity).toFixed(2)} ج.م</td>
-                      </tr>
-                    ))}
+                    {selectedOrder.items?.map((item) => {
+                      const itemTotal = calculateItemTotal(item);
+                      return (
+                        <tr key={item.id} className="border-t">
+                          <td className="p-3">
+                            <p className="font-medium">{item.product_name}</p>
+                            <p className="text-xs text-muted-foreground">#{item.product_code}</p>
+                          </td>
+                          <td className="p-3">{item.price} ج.م</td>
+                          <td className="p-3">{item.quantity}</td>
+                          <td className="p-3">{itemTotal.toFixed(2)} ج.م</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
               <div className="text-left space-y-1">
-                <p>الإجمالي الفرعي: {selectedOrder.subtotal.toFixed(2)} ج.م</p>
-                {selectedOrder.deposit_amount > 0 && (
-                  <p className="text-secondary">العربون: -{selectedOrder.deposit_amount.toFixed(2)} ج.م</p>
-                )}
-                <p className="text-xl font-bold text-primary">المطلوب: {selectedOrder.total.toFixed(2)} ج.م</p>
+                {(() => {
+                  const calcSubtotal = selectedOrder.items?.reduce((sum, item) => sum + calculateItemTotal(item), 0) || 0;
+                  const calcTotal = calcSubtotal - selectedOrder.deposit_amount;
+                  return (
+                    <>
+                      <p>الإجمالي الفرعي: {calcSubtotal.toFixed(2)} ج.م</p>
+                      {selectedOrder.deposit_amount > 0 && (
+                        <p className="text-secondary">العربون: -{selectedOrder.deposit_amount.toFixed(2)} ج.م</p>
+                      )}
+                      <p className="text-xl font-bold text-primary">المطلوب: {calcTotal.toFixed(2)} ج.م</p>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           )}
@@ -445,36 +476,56 @@ const Orders = () => {
                       <th className="p-3 text-right">المنتج</th>
                       <th className="p-3 text-right">السعر</th>
                       <th className="p-3 text-right">الكمية</th>
+                      <th className="p-3 text-right">الإجمالي</th>
                       <th className="p-3 text-right">إجراءات</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {selectedOrder.items?.map((item) => (
-                      <tr key={item.id} className="border-t">
-                        <td className="p-3">
-                          <p className="font-medium">{item.product_name}</p>
-                          <p className="text-xs text-muted-foreground">#{item.product_code}</p>
-                        </td>
-                        <td className="p-3">{item.price} ج.م</td>
-                        <td className="p-3">
-                          <Input
-                            type="number"
-                            min="1"
-                            value={item.quantity}
-                            onChange={(e) => handleUpdateItemQuantity(item.id, parseInt(e.target.value) || 1)}
-                            className="w-20"
-                            dir="ltr"
-                          />
-                        </td>
-                        <td className="p-3">
-                          <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleRemoveItem(item.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
+                    {selectedOrder.items?.map((item) => {
+                      const itemTotal = calculateItemTotal(item);
+                      return (
+                        <tr key={item.id} className="border-t">
+                          <td className="p-3">
+                            <p className="font-medium">{item.product_name}</p>
+                            <p className="text-xs text-muted-foreground">#{item.product_code}</p>
+                          </td>
+                          <td className="p-3">{item.price} ج.م</td>
+                          <td className="p-3">
+                            <Input
+                              type="number"
+                              min="1"
+                              value={item.quantity}
+                              onChange={(e) => handleUpdateItemQuantity(item.id, parseInt(e.target.value) || 1)}
+                              className="w-20"
+                              dir="ltr"
+                            />
+                          </td>
+                          <td className="p-3 font-bold">{itemTotal.toFixed(2)} ج.م</td>
+                          <td className="p-3">
+                            <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleRemoveItem(item.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
+              </div>
+              <div className="text-left space-y-1 border-t pt-4">
+                {(() => {
+                  const calcSubtotal = selectedOrder.items?.reduce((sum, item) => sum + calculateItemTotal(item), 0) || 0;
+                  const calcTotal = calcSubtotal - selectedOrder.deposit_amount;
+                  return (
+                    <>
+                      <p>الإجمالي الفرعي: {calcSubtotal.toFixed(2)} ج.م</p>
+                      {selectedOrder.deposit_amount > 0 && (
+                        <p className="text-secondary">العربون: -{selectedOrder.deposit_amount.toFixed(2)} ج.م</p>
+                      )}
+                      <p className="text-xl font-bold text-primary">المطلوب: {calcTotal.toFixed(2)} ج.م</p>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           )}

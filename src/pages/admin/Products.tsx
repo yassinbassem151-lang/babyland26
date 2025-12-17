@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Plus, Edit2, Trash2, QrCode, Search, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,7 +15,6 @@ interface Product {
   name: string;
   description: string | null;
   price: number;
-  image_url: string | null;
   stock_quantity: number;
   low_stock_threshold: number;
 }
@@ -35,7 +34,6 @@ const Products = () => {
     name: '',
     description: '',
     price: 0,
-    image_url: '',
     stock_quantity: 0,
     low_stock_threshold: 10,
   });
@@ -101,7 +99,6 @@ const Products = () => {
       name: product.name,
       description: product.description || '',
       price: product.price,
-      image_url: product.image_url || '',
       stock_quantity: product.stock_quantity,
       low_stock_threshold: product.low_stock_threshold,
     });
@@ -142,7 +139,6 @@ const Products = () => {
       name: '',
       description: '',
       price: 0,
-      image_url: '',
       stock_quantity: 0,
       low_stock_threshold: 10,
     });
@@ -195,14 +191,6 @@ const Products = () => {
                 <Input
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label>رابط الصورة</Label>
-                <Input
-                  value={formData.image_url}
-                  onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                  dir="ltr"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -259,20 +247,15 @@ const Products = () => {
             <Card key={product.id} className="overflow-hidden hover:shadow-baby transition-shadow">
               <CardContent className="p-4">
                 <div className="flex gap-3">
-                  {product.image_url ? (
-                    <img
-                      src={product.image_url}
-                      alt={product.name}
-                      className="h-20 w-20 rounded-lg object-cover"
-                    />
-                  ) : (
-                    <div className="h-20 w-20 rounded-lg bg-muted flex items-center justify-center">
-                      <Package className="h-8 w-8 text-muted-foreground" />
-                    </div>
-                  )}
+                  <div className="h-16 w-16 rounded-lg bg-muted flex items-center justify-center">
+                    <Package className="h-8 w-8 text-muted-foreground" />
+                  </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-muted-foreground">#{product.code}</p>
                     <h3 className="font-bold truncate">{product.name}</h3>
+                    {product.description && (
+                      <p className="text-xs text-muted-foreground truncate">{product.description}</p>
+                    )}
                     <p className="text-sm text-primary font-bold">{product.price} ج.م</p>
                     <p className={`text-xs ${product.stock_quantity <= product.low_stock_threshold ? 'text-destructive' : 'text-muted-foreground'}`}>
                       المخزون: {product.stock_quantity}

@@ -1,11 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Package, CreditCard, Truck, User, Check, Users } from 'lucide-react';
+import { ArrowRight, Package, CreditCard, Truck, User, Check, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useCart, calculateItemTotal, getDescriptionMultiplier } from '@/contexts/CartContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -185,6 +184,12 @@ const oldCustomersData = [
   { name: 'كيرلس وهبه', shopName: 'كوكو واو', address: 'التجمع الخامس', phone: '1127744343' },
   { name: 'دكتوره حفصه ابراهيم', shopName: 'د بيبي', address: 'القناطر', phone: '1066067724' },
   { name: 'احمد خليل', shopName: 'بيبي شوب', address: 'اوسيم', phone: '1129794935' },
+  { name: 'ابو الحسن', shopName: 'ابو الحسن', address: 'السيده', phone: '1006707813' },
+  { name: 'احمد', shopName: 'شنشن', address: 'دمياط', phone: '1000227785' },
+  { name: 'اسلام محمد', shopName: 'ستار كيدس', address: 'شركة شوكت', phone: '213540014724' },
+  { name: 'خالد الشريف', shopName: 'كيدز زون الفيوم', address: 'الفيوم', phone: '1005522303' },
+  { name: 'احمد', shopName: 'ستار كيدز', address: 'الاسماعيليه', phone: '1273333008' },
+  { name: 'محمد ونيس', shopName: 'كيدز اوسيم', address: 'الجيزه', phone: '1002300835' },
 ];
 
 const depositMethods = [
@@ -197,9 +202,11 @@ const Checkout = () => {
   const navigate = useNavigate();
   const { items, subtotal, clearCart } = useCart();
   const [loading, setLoading] = useState(false);
-  const [isOldCustomer, setIsOldCustomer] = useState(false);
   const [orderNumber, setOrderNumber] = useState<number | null>(null);
-
+  const [isOldCustomer, setIsOldCustomer] = useState(false);
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  
   const [formData, setFormData] = useState({
     name: '',
     shopName: '',
@@ -207,36 +214,52 @@ const Checkout = () => {
     address: '',
     deliveryDate: '',
     shippingCompany: '',
-    depositMethod: '' as string,
+    depositMethod: 'cash',
     depositAmount: 0,
   });
 
+  const total = subtotal - formData.depositAmount;
+
+  // Filter customers based on search
+  const filteredCustomers = useMemo(() => {
+    if (!customerSearch.trim()) return oldCustomersData;
+    const searchLower = customerSearch.toLowerCase();
+    return oldCustomersData.filter(
+      (c) =>
+        c.name.toLowerCase().includes(searchLower) ||
+        c.shopName.toLowerCase().includes(searchLower) ||
+        c.phone.includes(customerSearch)
+    );
+  }, [customerSearch]);
+
   const handleOldCustomerToggle = () => {
     setIsOldCustomer(!isOldCustomer);
-  };
-
-  const handleOldCustomerSelect = (index: string) => {
-    const customer = oldCustomersData[parseInt(index)];
-    if (customer) {
+    if (isOldCustomer) {
       setFormData({
         ...formData,
-        name: customer.name,
-        shopName: customer.shopName,
-        phone: customer.phone,
-        address: customer.address,
+        name: '',
+        shopName: '',
+        phone: '',
+        address: '',
       });
+      setCustomerSearch('');
     }
   };
 
-  const total = subtotal - formData.depositAmount;
+  const handleOldCustomerSelect = (customer: typeof oldCustomersData[0]) => {
+    setFormData({
+      ...formData,
+      name: customer.name,
+      shopName: customer.shopName,
+      address: customer.address,
+      phone: customer.phone,
+    });
+    setShowCustomerDropdown(false);
+    setCustomerSearch('');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (items.length === 0) {
-      toast.error('السلة فارغة');
-      return;
-    }
 
     if (!formData.name || !formData.phone) {
       toast.error('يرجى ملء الحقول المطلوبة');
@@ -298,17 +321,6 @@ const Checkout = () => {
         .single();
 
       if (orderError) throw orderError;
-
-      // Create order items
-      const orderItems = items.map(item => ({
-        order_id: order.order_number ? undefined : order.order_number,
-        product_id: item.productId,
-        product_code: item.code,
-        product_name: item.name,
-        product_description: item.description,
-        price: item.price,
-        quantity: item.quantity,
-      }));
 
       // Get order ID first
       const { data: orderData } = await supabase
@@ -458,20 +470,42 @@ const Checkout = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 {isOldCustomer && (
-                  <div>
-                    <Label>اختر عميل</Label>
-                    <Select onValueChange={handleOldCustomerSelect}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="اختر من العملاء السابقين" />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-[300px]">
-                        {oldCustomersData.map((customer, index) => (
-                          <SelectItem key={index} value={index.toString()}>
-                            {customer.name} - {customer.shopName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="relative">
+                    <Label>ابحث عن عميل</Label>
+                    <div className="relative">
+                      <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        placeholder="ابحث بالاسم أو رقم الهاتف..."
+                        value={customerSearch}
+                        onChange={(e) => {
+                          setCustomerSearch(e.target.value);
+                          setShowCustomerDropdown(true);
+                        }}
+                        onFocus={() => setShowCustomerDropdown(true)}
+                        className="pr-10"
+                      />
+                    </div>
+                    {showCustomerDropdown && (
+                      <div className="absolute z-50 w-full mt-1 max-h-60 overflow-y-auto bg-background border rounded-lg shadow-lg">
+                        {filteredCustomers.length === 0 ? (
+                          <div className="p-3 text-center text-muted-foreground">لا توجد نتائج</div>
+                        ) : (
+                          filteredCustomers.slice(0, 20).map((customer, index) => (
+                            <button
+                              key={index}
+                              type="button"
+                              className="w-full p-3 text-right hover:bg-muted border-b last:border-b-0 transition-colors"
+                              onClick={() => handleOldCustomerSelect(customer)}
+                            >
+                              <p className="font-medium">{customer.name}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {customer.shopName} - {customer.phone}
+                              </p>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
                 
@@ -574,6 +608,32 @@ const Checkout = () => {
                     ))}
                   </RadioGroup>
                 </div>
+
+                {/* InstaPay Message */}
+                {formData.depositMethod === 'instapay' && (
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg text-blue-800">
+                    <p className="font-bold mb-2">اضغط الرابط لارسال نقود الى</p>
+                    <a 
+                      href="https://ipn.eg/S/basom.1980/instapay/44SGmu" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 underline font-bold block mb-2"
+                    >
+                      https://ipn.eg/S/basom.1980/instapay/44SGmu
+                    </a>
+                    <p className="text-sm">basom.1980@instapay</p>
+                    <p className="text-xs text-blue-600 mt-1">Powered by InstaPay</p>
+                  </div>
+                )}
+
+                {/* Vodafone Cash Message */}
+                {formData.depositMethod === 'vodafone_cash' && (
+                  <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">
+                    <p className="font-bold mb-2">رقم فودافون كاش:</p>
+                    <p className="text-2xl font-bold" dir="ltr">01001608562</p>
+                  </div>
+                )}
+
                 <div>
                   <Label htmlFor="depositAmount">قيمة العربون</Label>
                   <Input
