@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import logoImage from '@/assets/babyland-logo.jpg';
 
 interface OrderItem {
   id: string;
@@ -239,6 +240,7 @@ const Orders = () => {
         <style>
           body { font-family: 'Cairo', Arial, sans-serif; padding: 20px; direction: rtl; }
           .header { text-align: center; margin-bottom: 30px; }
+          .header img { width: 120px; height: 120px; object-fit: contain; border-radius: 50%; margin-bottom: 10px; }
           .header h1 { color: #00bfff; margin: 0; }
           .header p { color: #ff69b4; }
           .info { margin-bottom: 20px; }
@@ -253,6 +255,7 @@ const Orders = () => {
       </head>
       <body>
         <div class="header">
+          <img src="${logoImage}" alt="Babyland Logo" />
           <h1>Babyland</h1>
           <p>Kids in Style</p>
           <h2>فاتورة رقم ${order.order_number}</h2>

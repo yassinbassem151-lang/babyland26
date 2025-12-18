@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Package, CreditCard, Truck, User, Check, Search } from 'lucide-react';
+import { ArrowRight, Package, CreditCard, Truck, User, Check, Search, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,6 +10,7 @@ import { useCart, calculateItemTotal, getDescriptionMultiplier } from '@/context
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import Header from '@/components/Header';
+import logoImage from '@/assets/babyland-logo.jpg';
 
 // Old customers data - format: name | shopName | address | phone
 const oldCustomersData = [
@@ -203,6 +204,17 @@ const Checkout = () => {
   const { items, subtotal, clearCart } = useCart();
   const [loading, setLoading] = useState(false);
   const [orderNumber, setOrderNumber] = useState<number | null>(null);
+  const [orderDetails, setOrderDetails] = useState<{
+    items: typeof items;
+    subtotal: number;
+    total: number;
+    depositAmount: number;
+    depositMethod: string;
+    customerName: string;
+    shopName: string;
+    phone: string;
+    address: string;
+  } | null>(null);
   const [isOldCustomer, setIsOldCustomer] = useState(false);
   const [customerSearch, setCustomerSearch] = useState('');
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
@@ -221,15 +233,28 @@ const Checkout = () => {
   const total = subtotal - formData.depositAmount;
 
   // Filter customers based on search
+  // Normalize phone number - remove leading 0, 20, 2, country codes
+  const normalizePhone = (phone: string): string => {
+    let normalized = phone.replace(/\D/g, ''); // Remove non-digits
+    // Remove common country codes and leading zeros
+    if (normalized.startsWith('20')) normalized = normalized.slice(2);
+    if (normalized.startsWith('0')) normalized = normalized.slice(1);
+    return normalized;
+  };
+
+  // Only show customer when exact phone match is found
   const filteredCustomers = useMemo(() => {
-    if (!customerSearch.trim()) return oldCustomersData;
-    const searchLower = customerSearch.toLowerCase();
-    return oldCustomersData.filter(
-      (c) =>
-        c.name.toLowerCase().includes(searchLower) ||
-        c.shopName.toLowerCase().includes(searchLower) ||
-        c.phone.includes(customerSearch)
-    );
+    if (!customerSearch.trim()) return [];
+    const searchNormalized = normalizePhone(customerSearch);
+    
+    // Must have at least 9 digits for a valid phone search
+    if (searchNormalized.length < 9) return [];
+    
+    return oldCustomersData.filter((c) => {
+      const customerPhoneNormalized = normalizePhone(c.phone);
+      return customerPhoneNormalized === searchNormalized ||
+             c.name.toLowerCase() === customerSearch.toLowerCase();
+    });
   }, [customerSearch]);
 
   const handleOldCustomerToggle = () => {
@@ -347,6 +372,18 @@ const Checkout = () => {
         if (itemsError) throw itemsError;
       }
 
+      // Store order details for WhatsApp invoice
+      setOrderDetails({
+        items: [...items],
+        subtotal,
+        total,
+        depositAmount: formData.depositAmount,
+        depositMethod: formData.depositMethod,
+        customerName: formData.name,
+        shopName: formData.shopName,
+        phone: formData.phone,
+        address: formData.address,
+      });
       setOrderNumber(order.order_number);
       clearCart();
       toast.success(`تم إرسال الطلب رقم ${order.order_number} بنجاح!`);
@@ -356,6 +393,55 @@ const Checkout = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Generate invoice text for WhatsApp
+  const generateWhatsAppInvoice = () => {
+    if (!orderNumber || !orderDetails) return '';
+    
+    let invoiceText = `🧸 *Babyland - فاتورة رقم ${orderNumber}*\n\n`;
+    invoiceText += `👤 *العميل:* ${orderDetails.customerName}\n`;
+    if (orderDetails.shopName) invoiceText += `🏪 *المحل:* ${orderDetails.shopName}\n`;
+    invoiceText += `📞 *الهاتف:* ${orderDetails.phone}\n`;
+    if (orderDetails.address) invoiceText += `📍 *العنوان:* ${orderDetails.address}\n`;
+    invoiceText += `📅 *التاريخ:* ${new Date().toLocaleDateString('ar-EG')}\n\n`;
+    invoiceText += `━━━━━━━━━━━━━━━━\n`;
+    invoiceText += `📦 *المنتجات:*\n\n`;
+    
+    orderDetails.items.forEach((item, index) => {
+      const multiplier = getDescriptionMultiplier(item.description);
+      const itemTotal = calculateItemTotal(item);
+      const displayQty = multiplier > 1 ? item.quantity * multiplier : item.quantity;
+      invoiceText += `${index + 1}. ${item.name}\n`;
+      invoiceText += `   الكود: ${item.code}\n`;
+      invoiceText += `   الكمية: ${displayQty}\n`;
+      invoiceText += `   الإجمالي: ${itemTotal.toFixed(2)} ج.م\n\n`;
+    });
+    
+    invoiceText += `━━━━━━━━━━━━━━━━\n`;
+    invoiceText += `💰 *الإجمالي الفرعي:* ${orderDetails.subtotal.toFixed(2)} ج.م\n`;
+    if (orderDetails.depositAmount > 0) {
+      const methodLabel = orderDetails.depositMethod === 'instapay' ? 'InstaPay' : 
+                         orderDetails.depositMethod === 'vodafone_cash' ? 'فودافون كاش' : 'كاش';
+      invoiceText += `💵 *العربون (${methodLabel}):* -${orderDetails.depositAmount.toFixed(2)} ج.م\n`;
+    }
+    invoiceText += `✅ *المطلوب:* ${orderDetails.total.toFixed(2)} ج.م\n\n`;
+    invoiceText += `شكراً لتعاملكم مع Babyland 🎀`;
+    
+    return invoiceText;
+  };
+
+  const openWhatsApp = () => {
+    if (!orderDetails) return;
+    const invoiceText = generateWhatsAppInvoice();
+    // Format phone for WhatsApp - ensure it starts with country code
+    let whatsappPhone = orderDetails.phone.replace(/\D/g, '');
+    if (whatsappPhone.startsWith('0')) whatsappPhone = '2' + whatsappPhone;
+    if (!whatsappPhone.startsWith('2')) whatsappPhone = '2' + whatsappPhone;
+    if (!whatsappPhone.startsWith('20')) whatsappPhone = '20' + whatsappPhone.slice(1);
+    
+    const whatsappUrl = `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(invoiceText)}`;
+    window.open(whatsappUrl, '_blank');
   };
 
   if (orderNumber) {
@@ -371,9 +457,18 @@ const Checkout = () => {
               <h1 className="text-2xl font-bold mb-2">تم إرسال طلبك بنجاح!</h1>
               <p className="text-muted-foreground mb-4">رقم الطلب الخاص بك</p>
               <div className="text-5xl font-bold gradient-text mb-8">{orderNumber}</div>
-              <Button onClick={() => navigate('/')} className="w-full rounded-xl">
-                العودة للرئيسية
-              </Button>
+              <div className="space-y-3">
+                <Button 
+                  onClick={openWhatsApp} 
+                  className="w-full rounded-xl bg-green-500 hover:bg-green-600"
+                >
+                  <MessageCircle className="h-5 w-5 ml-2" />
+                  فتح المحادثة في واتساب
+                </Button>
+                <Button onClick={() => navigate('/')} variant="outline" className="w-full rounded-xl">
+                  العودة للرئيسية
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </main>
@@ -471,39 +566,35 @@ const Checkout = () => {
               <CardContent className="space-y-4">
                 {isOldCustomer && (
                   <div className="relative">
-                    <Label>ابحث عن عميل</Label>
+                    <Label>ابحث عن عميل بالاسم الكامل أو رقم الهاتف</Label>
                     <div className="relative">
                       <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                       <Input
-                        placeholder="ابحث بالاسم أو رقم الهاتف..."
+                        placeholder="ادخل رقم الهاتف كامل (01033110143)..."
                         value={customerSearch}
                         onChange={(e) => {
                           setCustomerSearch(e.target.value);
                           setShowCustomerDropdown(true);
                         }}
-                        onFocus={() => setShowCustomerDropdown(true)}
                         className="pr-10"
+                        dir="ltr"
                       />
                     </div>
-                    {showCustomerDropdown && (
+                    {showCustomerDropdown && filteredCustomers.length > 0 && (
                       <div className="absolute z-50 w-full mt-1 max-h-60 overflow-y-auto bg-background border rounded-lg shadow-lg">
-                        {filteredCustomers.length === 0 ? (
-                          <div className="p-3 text-center text-muted-foreground">لا توجد نتائج</div>
-                        ) : (
-                          filteredCustomers.slice(0, 20).map((customer, index) => (
-                            <button
-                              key={index}
-                              type="button"
-                              className="w-full p-3 text-right hover:bg-muted border-b last:border-b-0 transition-colors"
-                              onClick={() => handleOldCustomerSelect(customer)}
-                            >
-                              <p className="font-medium">{customer.name}</p>
-                              <p className="text-sm text-muted-foreground">
-                                {customer.shopName} - {customer.phone}
-                              </p>
-                            </button>
-                          ))
-                        )}
+                        {filteredCustomers.map((customer, index) => (
+                          <button
+                            key={index}
+                            type="button"
+                            className="w-full p-3 text-right hover:bg-muted border-b last:border-b-0 transition-colors"
+                            onClick={() => handleOldCustomerSelect(customer)}
+                          >
+                            <p className="font-medium">{customer.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {customer.shopName} - {customer.phone}
+                            </p>
+                          </button>
+                        ))}
                       </div>
                     )}
                   </div>
