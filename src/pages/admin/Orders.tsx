@@ -11,6 +11,7 @@ import logoImage from '@/assets/babyland-logo.jpg';
 
 interface OrderItem {
   id: string;
+  product_id: string;
   product_code: string;
   product_name: string;
   product_description: string | null;
@@ -130,6 +131,19 @@ const Orders = () => {
   const handleDelete = async (id: string) => {
     if (!confirm('هل أنت متأكد من حذف هذا الطلب؟')) return;
 
+    // First get order items to restore stock
+    const items = await loadOrderItems(id);
+    
+    // Restore stock for all items
+    for (const item of items) {
+      const { data: product } = await supabase.from('products').select('stock_quantity').eq('id', item.product_id).single();
+      if (product) {
+        await supabase.from('products').update({
+          stock_quantity: product.stock_quantity + item.quantity
+        }).eq('id', item.product_id);
+      }
+    }
+
     const { error } = await supabase.from('orders').delete().eq('id', id);
     if (error) {
       toast.error('فشل في حذف الطلب');
@@ -153,6 +167,11 @@ const Orders = () => {
       return;
     }
 
+    // Deduct stock
+    await supabase.from('products').update({
+      stock_quantity: product.stock_quantity - 1
+    }).eq('id', product.id);
+
     const { error } = await supabase.from('order_items').insert({
       order_id: selectedOrder.id,
       product_id: product.id,
@@ -165,6 +184,10 @@ const Orders = () => {
 
     if (error) {
       toast.error('فشل في إضافة المنتج');
+      // Restore stock on failure
+      await supabase.from('products').update({
+        stock_quantity: product.stock_quantity
+      }).eq('id', product.id);
     } else {
       toast.success('تم إضافة المنتج');
       const items = await loadOrderItems(selectedOrder.id);
@@ -185,10 +208,23 @@ const Orders = () => {
   const handleRemoveItem = async (itemId: string) => {
     if (!selectedOrder) return;
 
+    // Get item to restore stock
+    const itemToRemove = selectedOrder.items?.find(i => i.id === itemId);
+    
     const { error } = await supabase.from('order_items').delete().eq('id', itemId);
     if (error) {
       toast.error('فشل في حذف المنتج');
     } else {
+      // Restore stock
+      if (itemToRemove) {
+        const { data: product } = await supabase.from('products').select('stock_quantity').eq('id', itemToRemove.product_id).single();
+        if (product) {
+          await supabase.from('products').update({
+            stock_quantity: product.stock_quantity + itemToRemove.quantity
+          }).eq('id', itemToRemove.product_id);
+        }
+      }
+      
       const items = await loadOrderItems(selectedOrder.id);
       setSelectedOrder({ ...selectedOrder, items });
       
@@ -206,9 +242,29 @@ const Orders = () => {
   const handleUpdateItemQuantity = async (itemId: string, quantity: number) => {
     if (!selectedOrder || quantity < 1) return;
 
+    // Get current item to calculate stock difference
+    const currentItem = selectedOrder.items?.find(i => i.id === itemId);
+    if (!currentItem) return;
+    
+    const quantityDiff = quantity - currentItem.quantity;
+    
+    // Update stock (negative diff means more items, so deduct; positive means fewer items, so restore)
+    const { data: product } = await supabase.from('products').select('stock_quantity').eq('id', currentItem.product_id).single();
+    if (product) {
+      await supabase.from('products').update({
+        stock_quantity: product.stock_quantity - quantityDiff
+      }).eq('id', currentItem.product_id);
+    }
+
     const { error } = await supabase.from('order_items').update({ quantity }).eq('id', itemId);
     if (error) {
       toast.error('فشل في تحديث الكمية');
+      // Restore stock on failure
+      if (product) {
+        await supabase.from('products').update({
+          stock_quantity: product.stock_quantity
+        }).eq('id', currentItem.product_id);
+      }
     } else {
       const items = await loadOrderItems(selectedOrder.id);
       setSelectedOrder({ ...selectedOrder, items });
@@ -316,7 +372,11 @@ const Orders = () => {
   };
 
   const filteredOrders = searchCode
-    ? orders.filter((o) => o.order_number.toString().includes(searchCode))
+    ? orders.filter((o) => 
+        o.order_number.toString().includes(searchCode) ||
+        o.phone.includes(searchCode) ||
+        o.customer_name.toLowerCase().includes(searchCode.toLowerCase())
+      )
     : orders;
 
   return (
@@ -328,11 +388,10 @@ const Orders = () => {
       <div className="relative max-w-md">
         <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
-          placeholder="بحث برقم الطلب..."
+          placeholder="بحث برقم الطلب أو الهاتف أو الاسم..."
           value={searchCode}
           onChange={(e) => setSearchCode(e.target.value)}
           className="pr-10"
-          dir="ltr"
         />
       </div>
 
