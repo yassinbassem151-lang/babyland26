@@ -201,7 +201,7 @@ const depositMethods = [
 
 const Checkout = () => {
   const navigate = useNavigate();
-  const { items, subtotal, clearCart } = useCart();
+  const { items, subtotal, clearCart, extraInfo } = useCart();
   const [loading, setLoading] = useState(false);
   const [orderNumber, setOrderNumber] = useState<number | null>(null);
   const [orderDetails, setOrderDetails] = useState<{
@@ -214,6 +214,7 @@ const Checkout = () => {
     shopName: string;
     phone: string;
     address: string;
+    extraInfo: string;
   } | null>(null);
   const [isOldCustomer, setIsOldCustomer] = useState(false);
   const [customerSearch, setCustomerSearch] = useState('');
@@ -341,6 +342,7 @@ const Checkout = () => {
           deposit_amount: formData.depositAmount,
           subtotal: subtotal,
           total: total,
+          extra_info: extraInfo || null,
         })
         .select('order_number')
         .single();
@@ -383,6 +385,7 @@ const Checkout = () => {
         shopName: formData.shopName,
         phone: formData.phone,
         address: formData.address,
+        extraInfo: extraInfo,
       });
       setOrderNumber(order.order_number);
       clearCart();
@@ -404,8 +407,9 @@ const Checkout = () => {
     if (orderDetails.shopName) invoiceText += `🏪 *المحل:* ${orderDetails.shopName}\n`;
     invoiceText += `📞 *الهاتف:* ${orderDetails.phone}\n`;
     if (orderDetails.address) invoiceText += `📍 *العنوان:* ${orderDetails.address}\n`;
-    invoiceText += `📅 *التاريخ:* ${new Date().toLocaleDateString('ar-EG')}\n\n`;
-    invoiceText += `━━━━━━━━━━━━━━━━\n`;
+    invoiceText += `📅 *التاريخ:* ${new Date().toLocaleDateString('ar-EG')}\n`;
+    if (orderDetails.extraInfo) invoiceText += `📝 *ملاحظات:* ${orderDetails.extraInfo}\n`;
+    invoiceText += `\n━━━━━━━━━━━━━━━━\n`;
     invoiceText += `📦 *المنتجات:*\n\n`;
     
     orderDetails.items.forEach((item, index) => {

@@ -34,6 +34,7 @@ interface Order {
   total: number;
   status: string;
   created_at: string;
+  extra_info: string | null;
   items?: OrderItem[];
 }
 
@@ -322,6 +323,7 @@ const Orders = () => {
           <p><strong>الهاتف:</strong> ${order.phone}</p>
           ${order.address ? `<p><strong>العنوان:</strong> ${order.address}</p>` : ''}
           <p><strong>التاريخ:</strong> ${new Date(order.created_at).toLocaleDateString('ar-EG')}</p>
+          ${order.extra_info ? `<p><strong>ملاحظات:</strong> ${order.extra_info}</p>` : ''}
         </div>
         <table>
           <thead>

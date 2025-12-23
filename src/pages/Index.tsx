@@ -6,9 +6,14 @@ import Header from '@/components/Header';
 import QRScanner from '@/components/QRScanner';
 import CartPreview from '@/components/CartPreview';
 import ProductSearch from '@/components/ProductSearch';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { MessageCircle, FileEdit } from 'lucide-react';
 
 const Index = () => {
-  const { addItem } = useCart();
+  const { addItem, extraInfo, setExtraInfo } = useCart();
 
   const handleQRScan = useCallback(async (code: string) => {
     try {
@@ -60,6 +65,29 @@ const Index = () => {
           <CartPreview />
         </section>
 
+        {/* Extra Info Box */}
+        <section className="slide-up" style={{ animationDelay: '0.15s' }}>
+          <Card className="border-2 border-border shadow-baby">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <FileEdit className="h-5 w-5 text-primary" />
+                معلومات إضافية
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Label htmlFor="extraInfo" className="text-muted-foreground text-sm mb-2 block">
+                أضف أي ملاحظات أو معلومات إضافية تريد إضافتها للفاتورة
+              </Label>
+              <Input
+                id="extraInfo"
+                placeholder="ملاحظات إضافية..."
+                value={extraInfo}
+                onChange={(e) => setExtraInfo(e.target.value)}
+              />
+            </CardContent>
+          </Card>
+        </section>
+
         {/* Product Search */}
         <section className="slide-up" style={{ animationDelay: '0.2s' }}>
           <div className="rounded-2xl border-2 border-border bg-card p-4 shadow-baby">
@@ -69,6 +97,18 @@ const Index = () => {
             </h2>
             <ProductSearch />
           </div>
+        </section>
+
+        {/* Made by Yassin Bassem Button */}
+        <section className="slide-up" style={{ animationDelay: '0.25s' }}>
+          <Button
+            variant="outline"
+            className="w-full py-6 text-lg font-bold rounded-xl border-2 border-green-500 text-green-600 hover:bg-green-50"
+            onClick={() => window.open('https://wa.me/201033110143', '_blank')}
+          >
+            <MessageCircle className="h-5 w-5 ml-2 text-green-500" />
+            made by yassin bassem
+          </Button>
         </section>
 
         {/* Decorative Elements */}
