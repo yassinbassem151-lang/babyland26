@@ -149,6 +149,8 @@ const Orders = () => {
     if (error) {
       toast.error('فشل في حذف الطلب');
     } else {
+      // Reset order number sequence to continue from max existing order number
+      await supabase.rpc('reset_order_number_sequence');
       toast.success('تم حذف الطلب');
       loadOrders();
     }
