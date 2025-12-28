@@ -338,7 +338,7 @@ const Orders = () => {
             </tr>
           </thead>
           <tbody>
-            ${order.items.map(item => {
+            ${[...order.items].sort((a, b) => a.product_code.localeCompare(b.product_code, undefined, { numeric: true })).map(item => {
               // Parse description for quantity calculation (e.g., "200/20" means pack of 20)
               let displayQuantity = item.quantity;
               const multiplier = getDescriptionMultiplier(item.product_description);
