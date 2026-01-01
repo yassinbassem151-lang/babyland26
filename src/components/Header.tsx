@@ -10,7 +10,7 @@ const Header = () => {
     <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
       <div className="container flex h-16 items-center justify-between">
         <Link to="/" className="flex items-center gap-3 transition-transform hover:scale-105">
-          <img src={babylandLogo} alt="Babyland" className="h-12 w-12 rounded-full object-cover shadow-baby" />
+          <img src={babylandLogo} alt="Babyland" className="h-12 w-auto object-contain" />
           <span className="text-xl font-bold gradient-text">Babyland</span>
         </Link>
 
