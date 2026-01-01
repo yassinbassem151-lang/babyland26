@@ -299,7 +299,7 @@ const Orders = () => {
         <style>
           body { font-family: 'Cairo', Arial, sans-serif; padding: 20px; direction: rtl; }
           .header { text-align: center; margin-bottom: 30px; }
-          .header img { width: 120px; height: 120px; object-fit: contain; border-radius: 50%; margin-bottom: 10px; }
+          .header img { width: 150px; height: auto; object-fit: contain; margin-bottom: 10px; }
           .header h1 { color: #00bfff; margin: 0; }
           .header p { color: #ff69b4; }
           .info { margin-bottom: 20px; }
