@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import logoImage from '@/assets/babyland-logo.jpg';
+import logoImage from '@/assets/baby-land-logo.jpg';
 
 interface OrderItem {
   id: string;
