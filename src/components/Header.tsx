@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { ShoppingCart, Settings } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
-import babylandLogo from '@/assets/babyland-logo.jpg';
+import babylandLogo from '@/assets/baby-land-logo.jpg';
 
 const Header = () => {
   const { totalItems } = useCart();

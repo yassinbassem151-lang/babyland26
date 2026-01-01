@@ -115,11 +115,8 @@ const ProductSearch = () => {
                 {product.description && (
                   <p className="text-sm text-muted-foreground line-clamp-2">{product.description}</p>
                 )}
-                <div className="flex items-center justify-between mt-2">
+                <div className="mt-2">
                   <span className="text-xl font-bold text-primary">{product.price} ج.م</span>
-                  <span className={`text-sm ${product.stock_quantity <= 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
-                    المخزون: {product.stock_quantity}
-                  </span>
                 </div>
               </div>
             </div>
