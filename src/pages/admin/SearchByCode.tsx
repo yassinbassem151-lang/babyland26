@@ -34,6 +34,7 @@ const SearchByCode = () => {
   const [searched, setSearched] = useState(false);
   const [productName, setProductName] = useState('');
   const [productDescription, setProductDescription] = useState<string | null>(null);
+  const [stockQuantity, setStockQuantity] = useState<number>(0);
 
   const handleSearch = async () => {
     if (!searchCode.trim()) {
@@ -45,15 +46,16 @@ const SearchByCode = () => {
     setSearched(true);
 
     try {
-      // Get product name and description
+      // Get product name, description and stock
       const { data: product } = await supabase
         .from('products')
-        .select('name, description')
+        .select('name, description, stock_quantity')
         .eq('code', searchCode.trim())
         .maybeSingle();
 
       setProductName(product?.name || searchCode.trim());
       setProductDescription(product?.description || null);
+      setStockQuantity(product?.stock_quantity || 0);
 
       // Get all order items with this product code
       const { data: orderItems, error } = await supabase
@@ -171,7 +173,7 @@ const SearchByCode = () => {
         <>
           {/* Summary Cards */}
           {orders.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm text-muted-foreground">اسم المنتج</CardTitle>
@@ -181,6 +183,15 @@ const SearchByCode = () => {
                   {productDescription && (
                     <p className="text-sm text-muted-foreground mt-1">{productDescription}</p>
                   )}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-muted-foreground">المخزون</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold text-orange-600">{stockQuantity}</p>
+                  <p className="text-sm text-muted-foreground">الكمية المتاحة</p>
                 </CardContent>
               </Card>
               <Card>
