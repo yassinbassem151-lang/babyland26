@@ -584,12 +584,12 @@ const Orders = () => {
                     <select
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
                       value={selectedOrder.deposit_method || ''}
-                      onChange={(e) => setSelectedOrder({ ...selectedOrder, deposit_method: e.target.value })}
+                      onChange={(e) => setSelectedOrder({ ...selectedOrder, deposit_method: e.target.value || null })}
                     >
                       <option value="">بدون عربون</option>
-                      <option value="كاش">كاش</option>
-                      <option value="انستاباي">انستاباي</option>
-                      <option value="فودافون كاش">فودافون كاش</option>
+                      <option value="cash">كاش</option>
+                      <option value="instapay">انستاباي</option>
+                      <option value="vodafone_cash">فودافون كاش</option>
                     </select>
                   </div>
                   <div>
