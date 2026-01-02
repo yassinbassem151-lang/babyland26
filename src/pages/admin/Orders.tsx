@@ -625,6 +625,37 @@ const Orders = () => {
                     if (error) {
                       toast.error('فشل في حفظ التعديلات');
                     } else {
+                      // Update the deposits table as well
+                      // First, check if a deposit exists for this order
+                      const { data: existingDeposit } = await supabase
+                        .from('deposits')
+                        .select('id')
+                        .eq('order_id', selectedOrder.id)
+                        .maybeSingle();
+
+                      if (selectedOrder.deposit_amount > 0 && selectedOrder.deposit_method) {
+                        if (existingDeposit) {
+                          // Update existing deposit
+                          await supabase.from('deposits').update({
+                            amount: selectedOrder.deposit_amount,
+                            method: selectedOrder.deposit_method,
+                            customer_name: selectedOrder.customer_name,
+                          }).eq('order_id', selectedOrder.id);
+                        } else {
+                          // Create new deposit
+                          await supabase.from('deposits').insert({
+                            order_id: selectedOrder.id,
+                            order_number: selectedOrder.order_number,
+                            customer_name: selectedOrder.customer_name,
+                            amount: selectedOrder.deposit_amount,
+                            method: selectedOrder.deposit_method,
+                          });
+                        }
+                      } else if (existingDeposit) {
+                        // Remove deposit if amount is 0 or no method selected
+                        await supabase.from('deposits').delete().eq('order_id', selectedOrder.id);
+                      }
+
                       toast.success('تم حفظ التعديلات');
                       loadOrders();
                     }
