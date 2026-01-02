@@ -36,6 +36,18 @@ const Deposits = () => {
 
   useEffect(() => {
     loadDeposits();
+
+    // Real-time subscription for deposits changes
+    const channel = supabase
+      .channel('deposits-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'deposits' }, () => {
+        loadDeposits();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const loadDeposits = async () => {
