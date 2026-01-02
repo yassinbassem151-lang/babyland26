@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 
 export interface CartItem {
   id: string;
@@ -38,9 +38,43 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
+const CART_STORAGE_KEY = 'babyland_cart';
+const EXTRA_INFO_STORAGE_KEY = 'babyland_extra_info';
+
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [items, setItems] = useState<CartItem[]>([]);
-  const [extraInfo, setExtraInfo] = useState<string>('');
+  const [items, setItems] = useState<CartItem[]>(() => {
+    try {
+      const stored = localStorage.getItem(CART_STORAGE_KEY);
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [extraInfo, setExtraInfo] = useState<string>(() => {
+    try {
+      return localStorage.getItem(EXTRA_INFO_STORAGE_KEY) || '';
+    } catch {
+      return '';
+    }
+  });
+
+  // Persist cart to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+    } catch {
+      // Ignore storage errors
+    }
+  }, [items]);
+
+  // Persist extraInfo to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(EXTRA_INFO_STORAGE_KEY, extraInfo);
+    } catch {
+      // Ignore storage errors
+    }
+  }, [extraInfo]);
 
   const addItem = useCallback((product: Omit<CartItem, 'id' | 'quantity'>, quantity = 1) => {
     setItems(prev => {
@@ -73,6 +107,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const clearCart = useCallback(() => {
     setItems([]);
     setExtraInfo('');
+    try {
+      localStorage.removeItem(CART_STORAGE_KEY);
+      localStorage.removeItem(EXTRA_INFO_STORAGE_KEY);
+    } catch {
+      // Ignore storage errors
+    }
   }, []);
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
