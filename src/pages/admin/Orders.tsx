@@ -517,67 +517,183 @@ const Orders = () => {
 
       {/* Edit Order Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>تعديل طلب رقم #{selectedOrder?.order_number}</DialogTitle>
           </DialogHeader>
           {selectedOrder && (
-            <div className="space-y-4">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="أدخل كود المنتج"
-                  value={addProductCode}
-                  onChange={(e) => setAddProductCode(e.target.value)}
-                  dir="ltr"
-                />
-                <Button onClick={handleAddProductToOrder} className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  إضافة
+            <div className="space-y-6">
+              {/* Customer Information Section */}
+              <div className="border rounded-lg p-4 space-y-4">
+                <h3 className="font-bold text-lg border-b pb-2">معلومات العميل</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm text-muted-foreground">اسم العميل</label>
+                    <Input
+                      value={selectedOrder.customer_name}
+                      onChange={(e) => setSelectedOrder({ ...selectedOrder, customer_name: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm text-muted-foreground">رقم الهاتف</label>
+                    <Input
+                      value={selectedOrder.phone}
+                      onChange={(e) => setSelectedOrder({ ...selectedOrder, phone: e.target.value })}
+                      dir="ltr"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm text-muted-foreground">اسم المحل</label>
+                    <Input
+                      value={selectedOrder.shop_name || ''}
+                      onChange={(e) => setSelectedOrder({ ...selectedOrder, shop_name: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm text-muted-foreground">العنوان</label>
+                    <Input
+                      value={selectedOrder.address || ''}
+                      onChange={(e) => setSelectedOrder({ ...selectedOrder, address: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm text-muted-foreground">تاريخ التسليم</label>
+                    <Input
+                      type="date"
+                      value={selectedOrder.delivery_date || ''}
+                      onChange={(e) => setSelectedOrder({ ...selectedOrder, delivery_date: e.target.value })}
+                      dir="ltr"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm text-muted-foreground">شركة الشحن</label>
+                    <Input
+                      value={selectedOrder.shipping_company || ''}
+                      onChange={(e) => setSelectedOrder({ ...selectedOrder, shipping_company: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Deposit Section */}
+              <div className="border rounded-lg p-4 space-y-4">
+                <h3 className="font-bold text-lg border-b pb-2">معلومات العربون</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm text-muted-foreground">طريقة الدفع</label>
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                      value={selectedOrder.deposit_method || ''}
+                      onChange={(e) => setSelectedOrder({ ...selectedOrder, deposit_method: e.target.value })}
+                    >
+                      <option value="">بدون عربون</option>
+                      <option value="كاش">كاش</option>
+                      <option value="انستاباي">انستاباي</option>
+                      <option value="فودافون كاش">فودافون كاش</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-sm text-muted-foreground">قيمة العربون</label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={selectedOrder.deposit_amount}
+                      onChange={(e) => setSelectedOrder({ ...selectedOrder, deposit_amount: parseFloat(e.target.value) || 0 })}
+                      dir="ltr"
+                    />
+                  </div>
+                </div>
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={async () => {
+                    const calcSubtotal = selectedOrder.items?.reduce((sum, item) => sum + calculateItemTotal(item), 0) || 0;
+                    const calcTotal = calcSubtotal - selectedOrder.deposit_amount;
+                    
+                    const { error } = await supabase.from('orders').update({
+                      customer_name: selectedOrder.customer_name,
+                      phone: selectedOrder.phone,
+                      shop_name: selectedOrder.shop_name,
+                      address: selectedOrder.address,
+                      delivery_date: selectedOrder.delivery_date,
+                      shipping_company: selectedOrder.shipping_company,
+                      deposit_method: selectedOrder.deposit_method,
+                      deposit_amount: selectedOrder.deposit_amount,
+                      total: calcTotal,
+                    }).eq('id', selectedOrder.id);
+
+                    if (error) {
+                      toast.error('فشل في حفظ التعديلات');
+                    } else {
+                      toast.success('تم حفظ التعديلات');
+                      loadOrders();
+                    }
+                  }}
+                >
+                  حفظ معلومات العميل والعربون
                 </Button>
               </div>
-              <div className="border rounded-lg overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted">
-                    <tr>
-                      <th className="p-3 text-right">المنتج</th>
-                      <th className="p-3 text-right">السعر</th>
-                      <th className="p-3 text-right">الكمية</th>
-                      <th className="p-3 text-right">الإجمالي</th>
-                      <th className="p-3 text-right">إجراءات</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedOrder.items?.map((item) => {
-                      const itemTotal = calculateItemTotal(item);
-                      return (
-                        <tr key={item.id} className="border-t">
-                          <td className="p-3">
-                            <p className="font-medium">{item.product_name}</p>
-                            <p className="text-xs text-muted-foreground">#{item.product_code}</p>
-                          </td>
-                          <td className="p-3">{item.price} ج.م</td>
-                          <td className="p-3">
-                            <Input
-                              type="number"
-                              min="1"
-                              value={item.quantity}
-                              onChange={(e) => handleUpdateItemQuantity(item.id, parseInt(e.target.value) || 1)}
-                              className="w-20"
-                              dir="ltr"
-                            />
-                          </td>
-                          <td className="p-3 font-bold">{itemTotal.toFixed(2)} ج.م</td>
-                          <td className="p-3">
-                            <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleRemoveItem(item.id)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+
+              {/* Products Section */}
+              <div className="border rounded-lg p-4 space-y-4">
+                <h3 className="font-bold text-lg border-b pb-2">المنتجات</h3>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="أدخل كود المنتج"
+                    value={addProductCode}
+                    onChange={(e) => setAddProductCode(e.target.value)}
+                    dir="ltr"
+                  />
+                  <Button onClick={handleAddProductToOrder} className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    إضافة
+                  </Button>
+                </div>
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted">
+                      <tr>
+                        <th className="p-3 text-right">المنتج</th>
+                        <th className="p-3 text-right">السعر</th>
+                        <th className="p-3 text-right">الكمية</th>
+                        <th className="p-3 text-right">الإجمالي</th>
+                        <th className="p-3 text-right">إجراءات</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedOrder.items?.map((item) => {
+                        const itemTotal = calculateItemTotal(item);
+                        return (
+                          <tr key={item.id} className="border-t">
+                            <td className="p-3">
+                              <p className="font-medium">{item.product_name}</p>
+                              <p className="text-xs text-muted-foreground">#{item.product_code}</p>
+                            </td>
+                            <td className="p-3">{item.price} ج.م</td>
+                            <td className="p-3">
+                              <Input
+                                type="number"
+                                min="1"
+                                value={item.quantity}
+                                onChange={(e) => handleUpdateItemQuantity(item.id, parseInt(e.target.value) || 1)}
+                                className="w-20"
+                                dir="ltr"
+                              />
+                            </td>
+                            <td className="p-3 font-bold">{itemTotal.toFixed(2)} ج.م</td>
+                            <td className="p-3">
+                              <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleRemoveItem(item.id)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
+
               <div className="text-left space-y-1 border-t pt-4">
                 {(() => {
                   const calcSubtotal = selectedOrder.items?.reduce((sum, item) => sum + calculateItemTotal(item), 0) || 0;
