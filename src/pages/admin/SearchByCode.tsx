@@ -17,7 +17,15 @@ interface OrderWithProduct {
   total: number;
   created_at: string;
   status: string;
+  product_description: string | null;
 }
+
+// Extract multiplier from description (e.g., "850/5" returns 5)
+const getDescriptionMultiplier = (description: string | null | undefined): number => {
+  if (!description) return 1;
+  const match = description.match(/\/(\d+)/);
+  return match ? parseInt(match[1], 10) : 1;
+};
 
 const SearchByCode = () => {
   const [searchCode, setSearchCode] = useState('');
@@ -25,6 +33,7 @@ const SearchByCode = () => {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [productName, setProductName] = useState('');
+  const [productDescription, setProductDescription] = useState<string | null>(null);
 
   const handleSearch = async () => {
     if (!searchCode.trim()) {
@@ -36,14 +45,15 @@ const SearchByCode = () => {
     setSearched(true);
 
     try {
-      // Get product name
+      // Get product name and description
       const { data: product } = await supabase
         .from('products')
-        .select('name')
+        .select('name, description')
         .eq('code', searchCode.trim())
         .maybeSingle();
 
       setProductName(product?.name || searchCode.trim());
+      setProductDescription(product?.description || null);
 
       // Get all order items with this product code
       const { data: orderItems, error } = await supabase
@@ -52,7 +62,8 @@ const SearchByCode = () => {
           order_id,
           quantity,
           price,
-          product_name
+          product_name,
+          product_description
         `)
         .eq('product_code', searchCode.trim());
 
@@ -86,7 +97,8 @@ const SearchByCode = () => {
           price: item.price,
           total: item.quantity * item.price,
           created_at: order?.created_at || '',
-          status: order?.status || ''
+          status: order?.status || '',
+          product_description: item.product_description
         };
       }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
@@ -102,8 +114,12 @@ const SearchByCode = () => {
     }
   };
 
-  const totalQuantity = orders.reduce((sum, order) => sum + order.quantity, 0);
+  const totalQuantitySold = orders.reduce((sum, order) => sum + order.quantity, 0);
   const totalSales = orders.reduce((sum, order) => sum + order.total, 0);
+  
+  // Calculate total pieces using multiplier from product description
+  const multiplier = getDescriptionMultiplier(productDescription);
+  const totalPieces = totalQuantitySold * multiplier;
 
   const getStatusText = (status: string) => {
     switch (status) {
@@ -155,21 +171,36 @@ const SearchByCode = () => {
         <>
           {/* Summary Cards */}
           {orders.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm text-muted-foreground">اسم المنتج</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-xl font-bold">{productName}</p>
+                  {productDescription && (
+                    <p className="text-sm text-muted-foreground mt-1">{productDescription}</p>
+                  )}
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm text-muted-foreground">إجمالي الكمية المباعة</CardTitle>
+                  <CardTitle className="text-sm text-muted-foreground">الكمية المباعة (الطلبات)</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-2xl font-bold text-primary">{totalQuantity} قطعة</p>
+                  <p className="text-2xl font-bold text-primary">{totalQuantitySold}</p>
+                  <p className="text-sm text-muted-foreground">عدد الطلبات الفعلية</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-muted-foreground">إجمالي القطع (الاكسل)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold text-blue-600">{totalPieces} قطعة</p>
+                  <p className="text-sm text-muted-foreground">
+                    {totalQuantitySold} × {multiplier} = {totalPieces}
+                  </p>
                 </CardContent>
               </Card>
               <Card>
@@ -201,6 +232,7 @@ const SearchByCode = () => {
                       <TableHead className="text-right">العميل</TableHead>
                       <TableHead className="text-right">الهاتف</TableHead>
                       <TableHead className="text-right">الكمية</TableHead>
+                      <TableHead className="text-right">القطع</TableHead>
                       <TableHead className="text-right">السعر</TableHead>
                       <TableHead className="text-right">الإجمالي</TableHead>
                       <TableHead className="text-right">الحالة</TableHead>
@@ -208,22 +240,27 @@ const SearchByCode = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {orders.map((order, index) => (
-                      <TableRow key={`${order.order_id}-${index}`}>
-                        <TableCell className="font-medium">#{order.order_number}</TableCell>
-                        <TableCell>{order.customer_name}</TableCell>
-                        <TableCell dir="ltr" className="text-right">{order.phone}</TableCell>
-                        <TableCell>{order.quantity}</TableCell>
-                        <TableCell>{order.price.toFixed(2)} ج.م</TableCell>
-                        <TableCell className="font-medium">{order.total.toFixed(2)} ج.م</TableCell>
-                        <TableCell className={getStatusColor(order.status)}>
-                          {getStatusText(order.status)}
-                        </TableCell>
-                        <TableCell>
-                          {new Date(order.created_at).toLocaleDateString('ar-EG')}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {orders.map((order, index) => {
+                      const itemMultiplier = getDescriptionMultiplier(order.product_description || productDescription);
+                      const pieces = order.quantity * itemMultiplier;
+                      return (
+                        <TableRow key={`${order.order_id}-${index}`}>
+                          <TableCell className="font-medium">#{order.order_number}</TableCell>
+                          <TableCell>{order.customer_name}</TableCell>
+                          <TableCell dir="ltr" className="text-right">{order.phone}</TableCell>
+                          <TableCell>{order.quantity}</TableCell>
+                          <TableCell className="text-blue-600 font-medium">{pieces}</TableCell>
+                          <TableCell>{order.price.toFixed(2)} ج.م</TableCell>
+                          <TableCell className="font-medium">{order.total.toFixed(2)} ج.م</TableCell>
+                          <TableCell className={getStatusColor(order.status)}>
+                            {getStatusText(order.status)}
+                          </TableCell>
+                          <TableCell>
+                            {new Date(order.created_at).toLocaleDateString('ar-EG')}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               )}
