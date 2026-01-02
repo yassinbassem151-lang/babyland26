@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link, Outlet, useLocation } from 'react-router-dom';
-import { Package, ShoppingCart, Users, BarChart3, LogOut, FileSpreadsheet, Wallet } from 'lucide-react';
+import { Package, ShoppingCart, Users, BarChart3, LogOut, Wallet, SearchCode } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import babylandLogo from '@/assets/babyland-logo.jpg';
 
@@ -10,6 +10,7 @@ const navItems = [
   { path: '/admin/dashboard/orders', label: 'الطلبات', icon: ShoppingCart },
   { path: '/admin/dashboard/customers', label: 'العملاء', icon: Users },
   { path: '/admin/dashboard/deposits', label: 'العربون', icon: Wallet },
+  { path: '/admin/dashboard/search-by-code', label: 'البحث بالكود', icon: SearchCode },
 ];
 
 const AdminDashboard = () => {
