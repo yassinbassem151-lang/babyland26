@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Eye, Edit2, Trash2, FileText, Search, ShoppingCart, Plus } from 'lucide-react';
+import { Eye, Edit2, Trash2, FileText, Search, ShoppingCart, Plus, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -76,8 +76,20 @@ const Orders = () => {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
   const [searchCode, setSearchCode] = useState('');
   const [addProductCode, setAddProductCode] = useState('');
+  const [duplicateCustomer, setDuplicateCustomer] = useState({
+    customer_name: '',
+    phone: '',
+    shop_name: '',
+    address: '',
+    delivery_date: '',
+    shipping_company: '',
+    deposit_method: '',
+    deposit_amount: 0,
+    extra_info: '',
+  });
 
   useEffect(() => {
     loadOrders();
@@ -127,6 +139,85 @@ const Orders = () => {
     const items = await loadOrderItems(order.id);
     setSelectedOrder({ ...order, items });
     setEditDialogOpen(true);
+  };
+
+  const handleDuplicate = async (order: Order) => {
+    const items = await loadOrderItems(order.id);
+    setSelectedOrder({ ...order, items });
+    setDuplicateCustomer({
+      customer_name: '',
+      phone: '',
+      shop_name: '',
+      address: '',
+      delivery_date: '',
+      shipping_company: '',
+      deposit_method: '',
+      deposit_amount: 0,
+      extra_info: '',
+    });
+    setDuplicateDialogOpen(true);
+  };
+
+  const handleCreateDuplicateOrder = async () => {
+    if (!selectedOrder || !selectedOrder.items || !duplicateCustomer.customer_name || !duplicateCustomer.phone) {
+      toast.error('يرجى إدخال اسم العميل ورقم الهاتف');
+      return;
+    }
+
+    // Calculate subtotal
+    const subtotal = selectedOrder.items.reduce((sum, item) => sum + calculateItemTotal(item), 0);
+    const total = subtotal - (duplicateCustomer.deposit_amount || 0);
+
+    // Create new order
+    const { data: newOrder, error: orderError } = await supabase
+      .from('orders')
+      .insert({
+        customer_name: duplicateCustomer.customer_name,
+        phone: duplicateCustomer.phone,
+        shop_name: duplicateCustomer.shop_name || null,
+        address: duplicateCustomer.address || null,
+        delivery_date: duplicateCustomer.delivery_date || null,
+        shipping_company: duplicateCustomer.shipping_company || null,
+        deposit_method: duplicateCustomer.deposit_method || null,
+        deposit_amount: duplicateCustomer.deposit_amount || 0,
+        extra_info: duplicateCustomer.extra_info || null,
+        subtotal,
+        total,
+        status: 'pending',
+      })
+      .select()
+      .single();
+
+    if (orderError || !newOrder) {
+      toast.error('فشل في إنشاء الطلب');
+      return;
+    }
+
+    // Insert order items (this will trigger stock deduction via the trigger)
+    const orderItemsToInsert = selectedOrder.items.map(item => ({
+      order_id: newOrder.id,
+      product_id: item.product_id,
+      product_code: item.product_code,
+      product_name: item.product_name,
+      product_description: item.product_description,
+      price: item.price,
+      quantity: item.quantity,
+    }));
+
+    const { error: itemsError } = await supabase
+      .from('order_items')
+      .insert(orderItemsToInsert);
+
+    if (itemsError) {
+      toast.error('فشل في إضافة المنتجات للطلب');
+      // Delete the order if items failed
+      await supabase.from('orders').delete().eq('id', newOrder.id);
+      return;
+    }
+
+    toast.success(`تم إنشاء طلب جديد رقم #${newOrder.order_number}`);
+    setDuplicateDialogOpen(false);
+    loadOrders();
   };
 
   const handleDelete = async (id: string) => {
@@ -433,6 +524,9 @@ const Orders = () => {
                       <Button size="sm" variant="outline" onClick={() => handleEdit(order)}>
                         <Edit2 className="h-4 w-4" />
                       </Button>
+                      <Button size="sm" variant="outline" onClick={() => handleDuplicate(order)} title="نسخ الطلب">
+                        <Copy className="h-4 w-4" />
+                      </Button>
                       <Button size="sm" variant="outline" onClick={async () => {
                         const items = await loadOrderItems(order.id);
                         generateInvoice({ ...order, items });
@@ -510,6 +604,168 @@ const Orders = () => {
                   );
                 })()}
               </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Duplicate Order Dialog */}
+      <Dialog open={duplicateDialogOpen} onOpenChange={setDuplicateDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>نسخ طلب رقم #{selectedOrder?.order_number} لعميل جديد</DialogTitle>
+          </DialogHeader>
+          {selectedOrder && (
+            <div className="space-y-6">
+              {/* New Customer Information */}
+              <div className="border rounded-lg p-4 space-y-4">
+                <h3 className="font-bold text-lg border-b pb-2">معلومات العميل الجديد</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm text-muted-foreground">اسم العميل *</label>
+                    <Input
+                      value={duplicateCustomer.customer_name}
+                      onChange={(e) => setDuplicateCustomer({ ...duplicateCustomer, customer_name: e.target.value })}
+                      placeholder="أدخل اسم العميل"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm text-muted-foreground">رقم الهاتف *</label>
+                    <Input
+                      value={duplicateCustomer.phone}
+                      onChange={(e) => setDuplicateCustomer({ ...duplicateCustomer, phone: e.target.value })}
+                      placeholder="أدخل رقم الهاتف"
+                      dir="ltr"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm text-muted-foreground">اسم المحل</label>
+                    <Input
+                      value={duplicateCustomer.shop_name}
+                      onChange={(e) => setDuplicateCustomer({ ...duplicateCustomer, shop_name: e.target.value })}
+                      placeholder="أدخل اسم المحل"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm text-muted-foreground">العنوان</label>
+                    <Input
+                      value={duplicateCustomer.address}
+                      onChange={(e) => setDuplicateCustomer({ ...duplicateCustomer, address: e.target.value })}
+                      placeholder="أدخل العنوان"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm text-muted-foreground">تاريخ التسليم</label>
+                    <Input
+                      type="date"
+                      value={duplicateCustomer.delivery_date}
+                      onChange={(e) => setDuplicateCustomer({ ...duplicateCustomer, delivery_date: e.target.value })}
+                      dir="ltr"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm text-muted-foreground">شركة الشحن</label>
+                    <Input
+                      value={duplicateCustomer.shipping_company}
+                      onChange={(e) => setDuplicateCustomer({ ...duplicateCustomer, shipping_company: e.target.value })}
+                      placeholder="أدخل شركة الشحن"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Deposit Section */}
+              <div className="border rounded-lg p-4 space-y-4">
+                <h3 className="font-bold text-lg border-b pb-2">معلومات العربون</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm text-muted-foreground">طريقة الدفع</label>
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                      value={duplicateCustomer.deposit_method}
+                      onChange={(e) => setDuplicateCustomer({ ...duplicateCustomer, deposit_method: e.target.value })}
+                    >
+                      <option value="">بدون عربون</option>
+                      <option value="cash">كاش</option>
+                      <option value="instapay">انستاباي</option>
+                      <option value="vodafone_cash">فودافون كاش</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-sm text-muted-foreground">قيمة العربون</label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={duplicateCustomer.deposit_amount}
+                      onChange={(e) => setDuplicateCustomer({ ...duplicateCustomer, deposit_amount: parseFloat(e.target.value) || 0 })}
+                      dir="ltr"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm text-muted-foreground">ملاحظات إضافية</label>
+                  <Input
+                    value={duplicateCustomer.extra_info}
+                    onChange={(e) => setDuplicateCustomer({ ...duplicateCustomer, extra_info: e.target.value })}
+                    placeholder="أي ملاحظات إضافية"
+                  />
+                </div>
+              </div>
+
+              {/* Products Preview */}
+              <div className="border rounded-lg p-4 space-y-4">
+                <h3 className="font-bold text-lg border-b pb-2">المنتجات (من الطلب الأصلي)</h3>
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted">
+                      <tr>
+                        <th className="p-3 text-right">المنتج</th>
+                        <th className="p-3 text-right">السعر</th>
+                        <th className="p-3 text-right">الكمية</th>
+                        <th className="p-3 text-right">الإجمالي</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedOrder.items?.map((item) => {
+                        const itemTotal = calculateItemTotal(item);
+                        return (
+                          <tr key={item.id} className="border-t">
+                            <td className="p-3">
+                              <p className="font-medium">{item.product_name}</p>
+                              <p className="text-xs text-muted-foreground">#{item.product_code}</p>
+                            </td>
+                            <td className="p-3">{item.price} ج.م</td>
+                            <td className="p-3">{item.quantity}</td>
+                            <td className="p-3">{itemTotal.toFixed(2)} ج.م</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Totals */}
+              <div className="text-left space-y-1 border-t pt-4">
+                {(() => {
+                  const calcSubtotal = selectedOrder.items?.reduce((sum, item) => sum + calculateItemTotal(item), 0) || 0;
+                  const calcTotal = calcSubtotal - (duplicateCustomer.deposit_amount || 0);
+                  return (
+                    <>
+                      <p>الإجمالي الفرعي: {calcSubtotal.toFixed(2)} ج.م</p>
+                      {duplicateCustomer.deposit_amount > 0 && (
+                        <p className="text-secondary">العربون: -{duplicateCustomer.deposit_amount.toFixed(2)} ج.م</p>
+                      )}
+                      <p className="text-xl font-bold text-primary">المطلوب: {calcTotal.toFixed(2)} ج.م</p>
+                    </>
+                  );
+                })()}
+              </div>
+
+              <Button onClick={handleCreateDuplicateOrder} className="w-full gap-2">
+                <Copy className="h-4 w-4" />
+                إنشاء طلب جديد
+              </Button>
             </div>
           )}
         </DialogContent>
