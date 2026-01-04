@@ -90,6 +90,7 @@ const SearchByCode = () => {
       // Combine order items with order details
       const combinedData: OrderWithProduct[] = orderItems.map(item => {
         const order = ordersData?.find(o => o.id === item.order_id);
+        const itemMultiplier = getDescriptionMultiplier(item.product_description || product?.description);
         return {
           order_id: item.order_id,
           order_number: order?.order_number || 0,
@@ -97,7 +98,7 @@ const SearchByCode = () => {
           phone: order?.phone || '',
           quantity: item.quantity,
           price: item.price,
-          total: item.quantity * item.price,
+          total: item.quantity * itemMultiplier * item.price,
           created_at: order?.created_at || '',
           status: order?.status || '',
           product_description: item.product_description
