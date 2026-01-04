@@ -85,6 +85,30 @@ export type Database = {
           },
         ]
       }
+      expenses: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string
+          expense_date: string
+          id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          description: string
+          expense_date?: string
+          id?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string
+          expense_date?: string
+          id?: string
+        }
+        Relationships: []
+      }
       order_items: {
         Row: {
           created_at: string
