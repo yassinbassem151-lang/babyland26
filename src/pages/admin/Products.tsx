@@ -235,7 +235,7 @@ const Products = () => {
             height: ${LABEL_HEIGHT_MM}mm;
             padding: ${MARGIN_MM}mm;
             display: flex;
-            flex-direction: row;
+            flex-direction: row-reverse;
             align-items: center;
             justify-content: flex-start;
             gap: 2mm;
