@@ -470,7 +470,8 @@ const Orders = () => {
     ? orders.filter((o) => 
         o.order_number.toString().includes(searchCode) ||
         o.phone.includes(searchCode) ||
-        o.customer_name.toLowerCase().includes(searchCode.toLowerCase())
+        o.customer_name.toLowerCase().includes(searchCode.toLowerCase()) ||
+        (o.shop_name && o.shop_name.toLowerCase().includes(searchCode.toLowerCase()))
       )
     : orders;
 
@@ -483,7 +484,7 @@ const Orders = () => {
       <div className="relative max-w-md">
         <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
-          placeholder="بحث برقم الطلب أو الهاتف أو الاسم..."
+          placeholder="بحث برقم الطلب أو الهاتف أو الاسم أو المحل..."
           value={searchCode}
           onChange={(e) => setSearchCode(e.target.value)}
           className="pr-10"
