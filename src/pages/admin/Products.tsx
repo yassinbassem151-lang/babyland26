@@ -247,15 +247,15 @@ const Products = () => {
           }
           .qr-container {
             flex-shrink: 0;
-            width: 16mm;
-            height: 16mm;
+            width: 18mm;
+            height: 18mm;
             display: flex;
             align-items: center;
             justify-content: center;
           }
           .qr-code {
-            width: 16mm;
-            height: 16mm;
+            width: 18mm;
+            height: 18mm;
             object-fit: contain;
           }
           .info {
