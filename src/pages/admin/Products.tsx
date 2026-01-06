@@ -263,22 +263,25 @@ const Products = () => {
             display: flex;
             flex-direction: column;
             justify-content: center;
-            align-items: flex-start;
+            align-items: flex-end;
             gap: 1mm;
             min-width: 0;
-            text-align: left;
+            text-align: right;
+            padding-right: 2mm;
           }
           .code {
             font-size: 9pt;
             font-weight: bold;
             color: #000;
             white-space: nowrap;
+            overflow: visible;
           }
           .price {
             font-size: 9pt;
             font-weight: bold;
             color: #000;
             white-space: nowrap;
+            overflow: visible;
           }
           @media print {
             body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
