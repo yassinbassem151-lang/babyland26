@@ -194,11 +194,6 @@ const Products = () => {
   };
 
   const printLabels = (labels: { product: Product; qrDataUrl: string }[]) => {
-    // Truncate name to fit label (max ~20 chars for this label size)
-    const truncateName = (name: string, maxLen: number = 18) => {
-      return name.length > maxLen ? name.substring(0, maxLen) + '..' : name;
-    };
-
     const labelsHtml = labels.map(({ product, qrDataUrl }) => `
       <div class="label">
         <div class="qr-container">
@@ -206,7 +201,6 @@ const Products = () => {
         </div>
         <div class="info">
           <div class="code">${product.code}</div>
-          <div class="name">${truncateName(product.name)}</div>
           <div class="price">${product.price} ج.م</div>
         </div>
       </div>
@@ -214,7 +208,7 @@ const Products = () => {
 
     const printHtml = `
       <!DOCTYPE html>
-      <html dir="rtl" lang="ar">
+      <html dir="ltr" lang="ar">
       <head>
         <meta charset="UTF-8">
         <title>طباعة الباركود</title>
@@ -228,10 +222,13 @@ const Products = () => {
             padding: 0;
             box-sizing: border-box;
           }
-          body {
-            font-family: Arial, sans-serif;
+          html, body {
+            width: ${LABEL_WIDTH_MM}mm;
             margin: 0;
             padding: 0;
+          }
+          body {
+            font-family: Arial, sans-serif;
           }
           .label {
             width: ${LABEL_WIDTH_MM}mm;
@@ -240,7 +237,8 @@ const Products = () => {
             display: flex;
             flex-direction: row;
             align-items: center;
-            gap: 1mm;
+            justify-content: flex-start;
+            gap: 2mm;
             page-break-after: always;
             overflow: hidden;
           }
@@ -249,15 +247,15 @@ const Products = () => {
           }
           .qr-container {
             flex-shrink: 0;
-            width: 14mm;
-            height: 14mm;
+            width: 16mm;
+            height: 16mm;
             display: flex;
             align-items: center;
             justify-content: center;
           }
           .qr-code {
-            width: 14mm;
-            height: 14mm;
+            width: 16mm;
+            height: 16mm;
             object-fit: contain;
           }
           .info {
@@ -265,29 +263,19 @@ const Products = () => {
             display: flex;
             flex-direction: column;
             justify-content: center;
-            gap: 0.3mm;
+            align-items: flex-start;
+            gap: 1mm;
             min-width: 0;
-            text-align: right;
-            direction: rtl;
+            text-align: left;
           }
           .code {
-            font-size: 7pt;
+            font-size: 9pt;
             font-weight: bold;
-            color: #333;
+            color: #000;
             white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-          }
-          .name {
-            font-size: 5.5pt;
-            color: #555;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            line-height: 1.1;
           }
           .price {
-            font-size: 7pt;
+            font-size: 9pt;
             font-weight: bold;
             color: #000;
             white-space: nowrap;
