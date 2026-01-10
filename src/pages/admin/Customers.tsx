@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useVersion } from '@/contexts/VersionContext';
 
 interface Customer {
   id: string;
@@ -17,18 +18,23 @@ interface Customer {
 }
 
 const Customers = () => {
+  const { activeVersion } = useVersion();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadCustomers();
-  }, []);
+    if (activeVersion) {
+      loadCustomers();
+    }
+  }, [activeVersion]);
 
   const loadCustomers = async () => {
+    if (!activeVersion) return;
     setLoading(true);
     const { data, error } = await supabase
       .from('customers')
       .select('*')
+      .eq('version_id', activeVersion.id)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -113,6 +119,10 @@ const Customers = () => {
       )}
     </>
   );
+
+  if (!activeVersion) {
+    return <div className="text-center py-12 text-muted-foreground">جاري التحميل...</div>;
+  }
 
   return (
     <div className="space-y-6">

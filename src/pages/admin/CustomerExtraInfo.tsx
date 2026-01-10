@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useVersion } from '@/contexts/VersionContext';
 
 interface OrderExtraInfo {
   id: string;
@@ -14,18 +15,23 @@ interface OrderExtraInfo {
 }
 
 const CustomerExtraInfo = () => {
+  const { activeVersion } = useVersion();
   const [orders, setOrders] = useState<OrderExtraInfo[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadOrders();
-  }, []);
+    if (activeVersion) {
+      loadOrders();
+    }
+  }, [activeVersion]);
 
   const loadOrders = async () => {
+    if (!activeVersion) return;
     setLoading(true);
     const { data, error } = await supabase
       .from('orders')
       .select('id, order_number, customer_name, extra_info, created_at')
+      .eq('version_id', activeVersion.id)
       .not('extra_info', 'is', null)
       .neq('extra_info', '')
       .order('created_at', { ascending: false });
@@ -60,6 +66,10 @@ const CustomerExtraInfo = () => {
     link.click();
     URL.revokeObjectURL(url);
   };
+
+  if (!activeVersion) {
+    return <div className="text-center py-12 text-muted-foreground">جاري التحميل...</div>;
+  }
 
   return (
     <div className="space-y-6">

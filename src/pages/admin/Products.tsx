@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import QRCode from 'qrcode';
+import { useVersion } from '@/contexts/VersionContext';
 
 interface Product {
   id: string;
@@ -25,6 +26,7 @@ const LABEL_HEIGHT_MM = 20.07; // 0.79 inches
 const MARGIN_MM = 1.27; // 0.05 inches
 
 const Products = () => {
+  const { activeVersion } = useVersion();
   const [products, setProducts] = useState<Product[]>([]);
   const [searchCode, setSearchCode] = useState('');
   const [loading, setLoading] = useState(true);
@@ -46,14 +48,18 @@ const Products = () => {
   });
 
   useEffect(() => {
-    loadProducts();
-  }, []);
+    if (activeVersion) {
+      loadProducts();
+    }
+  }, [activeVersion]);
 
   const loadProducts = async () => {
+    if (!activeVersion) return;
     setLoading(true);
     const { data, error } = await supabase
       .from('products')
       .select('*')
+      .eq('version_id', activeVersion.id)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -70,6 +76,7 @@ const Products = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!activeVersion) return;
 
     if (!formData.code || !formData.name) {
       toast.error('الكود والاسم مطلوبان');
@@ -86,7 +93,10 @@ const Products = () => {
         if (error) throw error;
         toast.success('تم تحديث المنتج');
       } else {
-        const { error } = await supabase.from('products').insert(formData);
+        const { error } = await supabase.from('products').insert({
+          ...formData,
+          version_id: activeVersion.id,
+        });
         if (error) throw error;
         toast.success('تم إضافة المنتج');
       }
@@ -334,6 +344,10 @@ const Products = () => {
     });
   };
 
+  if (!activeVersion) {
+    return <div className="text-center py-12 text-muted-foreground">جاري التحميل...</div>;
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-2">
@@ -498,17 +512,19 @@ const Products = () => {
                 variant="outline"
                 onClick={() => {
                   const link = document.createElement('a');
-                  link.download = `qr-${selectedProduct?.code}.png`;
                   link.href = qrImageUrl;
+                  link.download = `qr-${selectedProduct?.code}.png`;
                   link.click();
                 }}
               >
-                تحميل QR
+                تحميل
               </Button>
-              <Button onClick={() => selectedProduct && printSingleLabel(selectedProduct)}>
-                <Printer className="h-4 w-4 ml-2" />
-                طباعة
-              </Button>
+              {selectedProduct && (
+                <Button onClick={() => printSingleLabel(selectedProduct)}>
+                  <Printer className="h-4 w-4 ml-2" />
+                  طباعة
+                </Button>
+              )}
             </div>
           </div>
         </DialogContent>
@@ -516,50 +532,47 @@ const Products = () => {
 
       {/* Print Selection Dialog */}
       <Dialog open={printDialogOpen} onOpenChange={setPrintDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>طباعة الباركود</DialogTitle>
           </DialogHeader>
-          <div className="flex gap-2 mb-4">
-            <Button onClick={printAllLabels} className="gap-2">
-              <Printer className="h-4 w-4" />
-              طباعة الكل ({filteredProducts.length})
-            </Button>
-            <Button variant="outline" onClick={printSelectedLabels} className="gap-2">
-              <Printer className="h-4 w-4" />
-              طباعة المحدد ({selectedForPrint.size})
-            </Button>
-            <Button variant="ghost" onClick={toggleSelectAll} className="gap-2">
-              {selectedForPrint.size === filteredProducts.length ? (
-                <CheckSquare className="h-4 w-4" />
-              ) : (
-                <Square className="h-4 w-4" />
-              )}
-              تحديد الكل
-            </Button>
-          </div>
-          <div className="flex-1 overflow-y-auto space-y-2">
-            {filteredProducts.map((product) => (
-              <div
-                key={product.id}
-                className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                  selectedForPrint.has(product.id) ? 'bg-primary/10 border-primary' : 'hover:bg-muted'
-                }`}
-                onClick={() => toggleSelectProduct(product.id)}
-              >
-                <div className="flex-shrink-0">
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={toggleSelectAll} className="gap-2">
+                {selectedForPrint.size === filteredProducts.length ? (
+                  <CheckSquare className="h-4 w-4" />
+                ) : (
+                  <Square className="h-4 w-4" />
+                )}
+                تحديد الكل
+              </Button>
+              <Button variant="outline" onClick={printAllLabels}>
+                طباعة الكل ({filteredProducts.length})
+              </Button>
+              <Button onClick={printSelectedLabels} disabled={selectedForPrint.size === 0}>
+                طباعة المحدد ({selectedForPrint.size})
+              </Button>
+            </div>
+            <div className="max-h-60 overflow-y-auto border rounded-lg">
+              {filteredProducts.map((product) => (
+                <div
+                  key={product.id}
+                  className="flex items-center gap-3 p-3 hover:bg-muted cursor-pointer border-b last:border-b-0"
+                  onClick={() => toggleSelectProduct(product.id)}
+                >
                   {selectedForPrint.has(product.id) ? (
                     <CheckSquare className="h-5 w-5 text-primary" />
                   ) : (
                     <Square className="h-5 w-5 text-muted-foreground" />
                   )}
+                  <div className="flex-1">
+                    <p className="font-medium">{product.name}</p>
+                    <p className="text-sm text-muted-foreground">#{product.code}</p>
+                  </div>
+                  <p className="font-bold">{product.price} ج.م</p>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate">{product.name}</p>
-                  <p className="text-sm text-muted-foreground">#{product.code} - {product.price} ج.م</p>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </DialogContent>
       </Dialog>

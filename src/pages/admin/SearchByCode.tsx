@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useVersion } from '@/contexts/VersionContext';
 
 interface OrderWithProduct {
   order_id: string;
@@ -28,6 +29,7 @@ const getDescriptionMultiplier = (description: string | null | undefined): numbe
 };
 
 const SearchByCode = () => {
+  const { activeVersion } = useVersion();
   const [searchCode, setSearchCode] = useState('');
   const [orders, setOrders] = useState<OrderWithProduct[]>([]);
   const [loading, setLoading] = useState(false);
@@ -42,6 +44,11 @@ const SearchByCode = () => {
       return;
     }
 
+    if (!activeVersion) {
+      toast.error('يرجى اختيار نسخة أولاً');
+      return;
+    }
+
     setLoading(true);
     setSearched(true);
 
@@ -51,13 +58,14 @@ const SearchByCode = () => {
         .from('products')
         .select('name, description, stock_quantity')
         .eq('code', searchCode.trim())
+        .eq('version_id', activeVersion.id)
         .maybeSingle();
 
       setProductName(product?.name || searchCode.trim());
       setProductDescription(product?.description || null);
       setStockQuantity(product?.stock_quantity || 0);
 
-      // Get all order items with this product code
+      // Get all order items with this product code for this version
       const { data: orderItems, error } = await supabase
         .from('order_items')
         .select(`
@@ -67,7 +75,8 @@ const SearchByCode = () => {
           product_name,
           product_description
         `)
-        .eq('product_code', searchCode.trim());
+        .eq('product_code', searchCode.trim())
+        .eq('version_id', activeVersion.id);
 
       if (error) throw error;
 
@@ -83,6 +92,7 @@ const SearchByCode = () => {
         .from('orders')
         .select('id, order_number, customer_name, phone, created_at, status')
         .in('id', orderIds)
+        .eq('version_id', activeVersion.id)
         .order('created_at', { ascending: false });
 
       if (ordersError) throw ordersError;
@@ -145,6 +155,10 @@ const SearchByCode = () => {
       default: return '';
     }
   };
+
+  if (!activeVersion) {
+    return <div className="text-center py-12 text-muted-foreground">جاري التحميل...</div>;
+  }
 
   return (
     <div className="space-y-6" dir="rtl">
