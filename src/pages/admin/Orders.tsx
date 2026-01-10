@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import logoImage from '@/assets/baby-land-logo.jpg';
+import { useVersion } from '@/contexts/VersionContext';
 
 interface OrderItem {
   id: string;
@@ -71,6 +72,7 @@ const calculateItemTotal = (item: OrderItem): number => {
 };
 
 const Orders = () => {
+  const { activeVersion } = useVersion();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -92,25 +94,29 @@ const Orders = () => {
   });
 
   useEffect(() => {
-    loadOrders();
+    if (activeVersion) {
+      loadOrders();
 
-    const channel = supabase
-      .channel('orders-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
-        loadOrders();
-      })
-      .subscribe();
+      const channel = supabase
+        .channel('orders-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+          loadOrders();
+        })
+        .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [activeVersion]);
 
   const loadOrders = async () => {
+    if (!activeVersion) return;
     setLoading(true);
     const { data, error } = await supabase
       .from('orders')
       .select('*')
+      .eq('version_id', activeVersion.id)
       .order('order_number', { ascending: false });
 
     if (error) {
@@ -164,9 +170,18 @@ const Orders = () => {
       return;
     }
 
+    if (!activeVersion) {
+      toast.error('لا توجد نسخة نشطة');
+      return;
+    }
+
     // Calculate subtotal
     const subtotal = selectedOrder.items.reduce((sum, item) => sum + calculateItemTotal(item), 0);
     const total = subtotal - (duplicateCustomer.deposit_amount || 0);
+
+    // Get next order number for this version
+    const { data: nextOrderNum } = await supabase.rpc('get_next_order_number', { p_version_id: activeVersion.id });
+    const orderNumber = nextOrderNum || 1;
 
     // Create new order
     const { data: newOrder, error: orderError } = await supabase
@@ -184,6 +199,8 @@ const Orders = () => {
         subtotal,
         total,
         status: 'pending',
+        version_id: activeVersion.id,
+        order_number: orderNumber,
       })
       .select()
       .single();
@@ -202,6 +219,7 @@ const Orders = () => {
       product_description: item.product_description,
       price: item.price,
       quantity: item.quantity,
+      version_id: activeVersion.id,
     }));
 
     const { error: itemsError } = await supabase
@@ -248,12 +266,13 @@ const Orders = () => {
   };
 
   const handleAddProductToOrder = async () => {
-    if (!selectedOrder || !addProductCode.trim()) return;
+    if (!selectedOrder || !addProductCode.trim() || !activeVersion) return;
 
     const { data: product, error: productError } = await supabase
       .from('products')
       .select('*')
       .eq('code', addProductCode.trim())
+      .eq('version_id', activeVersion.id)
       .maybeSingle();
 
     if (productError || !product) {
@@ -274,6 +293,7 @@ const Orders = () => {
       product_description: product.description,
       price: product.price,
       quantity: 1,
+      version_id: activeVersion.id,
     });
 
     if (error) {
@@ -474,6 +494,10 @@ const Orders = () => {
         (o.shop_name && o.shop_name.toLowerCase().includes(searchCode.toLowerCase()))
       )
     : orders;
+
+  if (!activeVersion) {
+    return <div className="text-center py-12 text-muted-foreground">جاري التحميل...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -899,14 +923,23 @@ const Orders = () => {
                             customer_name: selectedOrder.customer_name,
                           }).eq('order_id', selectedOrder.id);
                         } else {
-                          // Create new deposit
-                          await supabase.from('deposits').insert({
-                            order_id: selectedOrder.id,
-                            order_number: selectedOrder.order_number,
-                            customer_name: selectedOrder.customer_name,
-                            amount: selectedOrder.deposit_amount,
-                            method: selectedOrder.deposit_method,
-                          });
+                          // Create new deposit - need to get version_id from the order
+                          const { data: orderVersion } = await supabase
+                            .from('orders')
+                            .select('version_id')
+                            .eq('id', selectedOrder.id)
+                            .single();
+                          
+                          if (orderVersion) {
+                            await supabase.from('deposits').insert({
+                              order_id: selectedOrder.id,
+                              order_number: selectedOrder.order_number,
+                              customer_name: selectedOrder.customer_name,
+                              amount: selectedOrder.deposit_amount,
+                              method: selectedOrder.deposit_method,
+                              version_id: orderVersion.version_id,
+                            });
+                          }
                         }
                       } else if (existingDeposit) {
                         // Remove deposit if amount is 0 or no method selected

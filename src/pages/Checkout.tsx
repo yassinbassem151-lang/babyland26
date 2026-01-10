@@ -295,6 +295,21 @@ const Checkout = () => {
     setLoading(true);
 
     try {
+      // Get active version
+      const { data: activeVersion } = await supabase
+        .from('versions')
+        .select('id')
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (!activeVersion) {
+        toast.error('لا توجد نسخة نشطة');
+        setLoading(false);
+        return;
+      }
+
+      const versionId = activeVersion.id;
+
       // Create or find customer
       let customerId: string | null = null;
       
@@ -302,6 +317,7 @@ const Checkout = () => {
         .from('customers')
         .select('id')
         .eq('phone', formData.phone)
+        .eq('version_id', versionId)
         .maybeSingle();
 
       if (existingCustomer) {
@@ -319,6 +335,7 @@ const Checkout = () => {
             phone: formData.phone,
             address: formData.address || null,
             is_new: !isOldCustomer,
+            version_id: versionId,
           })
           .select('id')
           .single();
@@ -326,6 +343,10 @@ const Checkout = () => {
         if (customerError) throw customerError;
         customerId = newCustomer.id;
       }
+
+      // Get next order number for this version
+      const { data: nextOrderNum } = await supabase.rpc('get_next_order_number', { p_version_id: versionId });
+      const orderNumber = nextOrderNum || 1;
 
       // Create order
       const { data: order, error: orderError } = await supabase
@@ -343,28 +364,24 @@ const Checkout = () => {
           subtotal: subtotal,
           total: total,
           extra_info: extraInfo || null,
+          version_id: versionId,
+          order_number: orderNumber,
         })
-        .select('order_number')
+        .select('id, order_number')
         .single();
 
       if (orderError) throw orderError;
 
-      // Get order ID first
-      const { data: orderData } = await supabase
-        .from('orders')
-        .select('id')
-        .eq('order_number', order.order_number)
-        .single();
-
-      if (orderData) {
+      if (order) {
         const orderItemsWithId = items.map(item => ({
-          order_id: orderData.id,
+          order_id: order.id,
           product_id: item.productId,
           product_code: item.code,
           product_name: item.name,
           product_description: item.description,
           price: item.price,
           quantity: item.quantity,
+          version_id: versionId,
         }));
 
         const { error: itemsError } = await supabase
