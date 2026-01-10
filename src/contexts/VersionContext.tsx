@@ -49,11 +49,11 @@ export const VersionProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const setActiveVersion = async (version: Version) => {
-    // Deactivate all versions
+    // Deactivate all versions first
     await supabase
       .from('versions')
       .update({ is_active: false })
-      .neq('id', '');
+      .not('id', 'is', null);
 
     // Activate selected version
     const { error } = await supabase
@@ -77,11 +77,11 @@ export const VersionProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    // Deactivate all versions
+    // Deactivate all versions first
     await supabase
       .from('versions')
       .update({ is_active: false })
-      .neq('id', '');
+      .not('id', 'is', null);
 
     // Create new version and set it as active
     const { data, error } = await supabase
