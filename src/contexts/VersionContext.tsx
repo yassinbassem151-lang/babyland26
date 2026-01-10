@@ -15,6 +15,8 @@ interface VersionContextType {
   loading: boolean;
   setActiveVersion: (version: Version) => Promise<void>;
   createVersion: (name: string) => Promise<void>;
+  renameVersion: (versionId: string, newName: string) => Promise<void>;
+  deleteVersion: (versionId: string) => Promise<void>;
   loadVersions: () => Promise<void>;
 }
 
@@ -100,8 +102,65 @@ export const VersionProvider = ({ children }: { children: ReactNode }) => {
     await loadVersions();
   };
 
+  const renameVersion = async (versionId: string, newName: string) => {
+    if (!newName.trim()) {
+      toast.error('يرجى إدخال اسم النسخة');
+      return;
+    }
+
+    const { error } = await supabase
+      .from('versions')
+      .update({ name: newName.trim() })
+      .eq('id', versionId);
+
+    if (error) {
+      toast.error('فشل في تغيير اسم النسخة');
+      return;
+    }
+
+    toast.success('تم تغيير اسم النسخة');
+    await loadVersions();
+  };
+
+  const deleteVersion = async (versionId: string) => {
+    // Check if this is the only version
+    if (versions.length <= 1) {
+      toast.error('لا يمكن حذف النسخة الوحيدة');
+      return;
+    }
+
+    // Check if trying to delete the active version
+    const versionToDelete = versions.find(v => v.id === versionId);
+    if (versionToDelete?.is_active) {
+      toast.error('لا يمكن حذف النسخة النشطة. قم بتغيير النسخة أولاً');
+      return;
+    }
+
+    // Delete all related data first
+    await supabase.from('order_items').delete().eq('version_id', versionId);
+    await supabase.from('deposits').delete().eq('version_id', versionId);
+    await supabase.from('orders').delete().eq('version_id', versionId);
+    await supabase.from('customers').delete().eq('version_id', versionId);
+    await supabase.from('products').delete().eq('version_id', versionId);
+    await supabase.from('expenses').delete().eq('version_id', versionId);
+
+    // Delete the version
+    const { error } = await supabase
+      .from('versions')
+      .delete()
+      .eq('id', versionId);
+
+    if (error) {
+      toast.error('فشل في حذف النسخة');
+      return;
+    }
+
+    toast.success('تم حذف النسخة وجميع بياناتها');
+    await loadVersions();
+  };
+
   return (
-    <VersionContext.Provider value={{ versions, activeVersion, loading, setActiveVersion, createVersion, loadVersions }}>
+    <VersionContext.Provider value={{ versions, activeVersion, loading, setActiveVersion, createVersion, renameVersion, deleteVersion, loadVersions }}>
       {children}
     </VersionContext.Provider>
   );
