@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Package, ShoppingCart, Users, TrendingUp, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
+import { useVersion } from '@/contexts/VersionContext';
 
 interface Stats {
   totalProducts: number;
@@ -12,6 +13,7 @@ interface Stats {
 }
 
 const Stats = () => {
+  const { activeVersion } = useVersion();
   const [stats, setStats] = useState<Stats>({
     totalProducts: 0,
     totalOrders: 0,
@@ -22,15 +24,19 @@ const Stats = () => {
   const [lowStockItems, setLowStockItems] = useState<any[]>([]);
 
   useEffect(() => {
-    loadStats();
-  }, []);
+    if (activeVersion) {
+      loadStats();
+    }
+  }, [activeVersion]);
 
   const loadStats = async () => {
+    if (!activeVersion) return;
+
     const [products, orders, customers, lowStock] = await Promise.all([
-      supabase.from('products').select('id', { count: 'exact' }),
-      supabase.from('orders').select('total'),
-      supabase.from('customers').select('id', { count: 'exact' }),
-      supabase.from('products').select('*').filter('stock_quantity', 'lte', 10),
+      supabase.from('products').select('id', { count: 'exact' }).eq('version_id', activeVersion.id),
+      supabase.from('orders').select('total').eq('version_id', activeVersion.id),
+      supabase.from('customers').select('id', { count: 'exact' }).eq('version_id', activeVersion.id),
+      supabase.from('products').select('*').eq('version_id', activeVersion.id).filter('stock_quantity', 'lte', 10),
     ]);
 
     const totalRevenue = orders.data?.reduce((sum, o) => sum + (o.total || 0), 0) || 0;
@@ -52,6 +58,10 @@ const Stats = () => {
     { title: 'العملاء', value: stats.totalCustomers, icon: Users, color: 'text-primary' },
     { title: 'الإيرادات', value: `${stats.totalRevenue.toFixed(2)} ج.م`, icon: TrendingUp, color: 'text-secondary' },
   ];
+
+  if (!activeVersion) {
+    return <div className="text-center py-12 text-muted-foreground">جاري التحميل...</div>;
+  }
 
   return (
     <div className="space-y-6">

@@ -24,6 +24,7 @@ export type Database = {
           phone: string
           shop_name: string | null
           updated_at: string
+          version_id: string
         }
         Insert: {
           address?: string | null
@@ -34,6 +35,7 @@ export type Database = {
           phone: string
           shop_name?: string | null
           updated_at?: string
+          version_id: string
         }
         Update: {
           address?: string | null
@@ -44,8 +46,17 @@ export type Database = {
           phone?: string
           shop_name?: string | null
           updated_at?: string
+          version_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "customers_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "versions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       deposits: {
         Row: {
@@ -56,6 +67,7 @@ export type Database = {
           method: string
           order_id: string
           order_number: number
+          version_id: string
         }
         Insert: {
           amount: number
@@ -65,6 +77,7 @@ export type Database = {
           method: string
           order_id: string
           order_number: number
+          version_id: string
         }
         Update: {
           amount?: number
@@ -74,6 +87,7 @@ export type Database = {
           method?: string
           order_id?: string
           order_number?: number
+          version_id?: string
         }
         Relationships: [
           {
@@ -81,6 +95,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deposits_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "versions"
             referencedColumns: ["id"]
           },
         ]
@@ -92,6 +113,7 @@ export type Database = {
           description: string
           expense_date: string
           id: string
+          version_id: string
         }
         Insert: {
           amount: number
@@ -99,6 +121,7 @@ export type Database = {
           description: string
           expense_date?: string
           id?: string
+          version_id: string
         }
         Update: {
           amount?: number
@@ -106,8 +129,17 @@ export type Database = {
           description?: string
           expense_date?: string
           id?: string
+          version_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "expenses_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "versions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       order_items: {
         Row: {
@@ -120,6 +152,7 @@ export type Database = {
           product_id: string
           product_name: string
           quantity: number
+          version_id: string
         }
         Insert: {
           created_at?: string
@@ -131,6 +164,7 @@ export type Database = {
           product_id: string
           product_name: string
           quantity?: number
+          version_id: string
         }
         Update: {
           created_at?: string
@@ -142,6 +176,7 @@ export type Database = {
           product_id?: string
           product_name?: string
           quantity?: number
+          version_id?: string
         }
         Relationships: [
           {
@@ -156,6 +191,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "versions"
             referencedColumns: ["id"]
           },
         ]
@@ -179,6 +221,7 @@ export type Database = {
           subtotal: number
           total: number
           updated_at: string
+          version_id: string
         }
         Insert: {
           address?: string | null
@@ -198,6 +241,7 @@ export type Database = {
           subtotal?: number
           total?: number
           updated_at?: string
+          version_id: string
         }
         Update: {
           address?: string | null
@@ -217,6 +261,7 @@ export type Database = {
           subtotal?: number
           total?: number
           updated_at?: string
+          version_id?: string
         }
         Relationships: [
           {
@@ -224,6 +269,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "versions"
             referencedColumns: ["id"]
           },
         ]
@@ -240,6 +292,7 @@ export type Database = {
           price: number
           stock_quantity: number
           updated_at: string
+          version_id: string
         }
         Insert: {
           code: string
@@ -252,6 +305,7 @@ export type Database = {
           price?: number
           stock_quantity?: number
           updated_at?: string
+          version_id: string
         }
         Update: {
           code?: string
@@ -264,6 +318,36 @@ export type Database = {
           price?: number
           stock_quantity?: number
           updated_at?: string
+          version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      versions: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
         }
         Relationships: []
       }
@@ -272,6 +356,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_next_order_number: { Args: { p_version_id: string }; Returns: number }
       reset_order_number_sequence: { Args: never; Returns: undefined }
     }
     Enums: {

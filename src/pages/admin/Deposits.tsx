@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useVersion } from '@/contexts/VersionContext';
 
 interface Deposit {
   id: string;
@@ -45,6 +46,7 @@ const methodLabels: Record<string, string> = {
 };
 
 const Deposits = () => {
+  const { activeVersion } = useVersion();
   const [deposits, setDeposits] = useState<Deposit[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,36 +56,39 @@ const Deposits = () => {
   const [expenseDescription, setExpenseDescription] = useState('');
 
   useEffect(() => {
-    loadData();
+    if (activeVersion) {
+      loadData();
 
-    // Real-time subscription for deposits changes
-    const depositsChannel = supabase
-      .channel('deposits-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'deposits' }, () => {
-        loadData();
-      })
-      .subscribe();
+      // Real-time subscription for deposits changes
+      const depositsChannel = supabase
+        .channel('deposits-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'deposits' }, () => {
+          loadData();
+        })
+        .subscribe();
 
-    // Real-time subscription for expenses changes
-    const expensesChannel = supabase
-      .channel('expenses-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, () => {
-        loadData();
-      })
-      .subscribe();
+      // Real-time subscription for expenses changes
+      const expensesChannel = supabase
+        .channel('expenses-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, () => {
+          loadData();
+        })
+        .subscribe();
 
-    return () => {
-      supabase.removeChannel(depositsChannel);
-      supabase.removeChannel(expensesChannel);
-    };
-  }, []);
+      return () => {
+        supabase.removeChannel(depositsChannel);
+        supabase.removeChannel(expensesChannel);
+      };
+    }
+  }, [activeVersion]);
 
   const loadData = async () => {
+    if (!activeVersion) return;
     setLoading(true);
     
     const [depositsResult, expensesResult] = await Promise.all([
-      supabase.from('deposits').select('*').order('created_at', { ascending: false }),
-      supabase.from('expenses').select('*').order('created_at', { ascending: false }),
+      supabase.from('deposits').select('*').eq('version_id', activeVersion.id).order('created_at', { ascending: false }),
+      supabase.from('expenses').select('*').eq('version_id', activeVersion.id).order('created_at', { ascending: false }),
     ]);
 
     if (depositsResult.error) {
@@ -179,6 +184,7 @@ const Deposits = () => {
   const totalExpensesAmount = expenses.reduce((sum, e) => sum + e.amount, 0);
 
   const handleAddExpense = async () => {
+    if (!activeVersion) return;
     if (!expenseAmount || !expenseDescription || !selectedDate) {
       toast.error('يرجى ملء جميع الحقول');
       return;
@@ -194,6 +200,7 @@ const Deposits = () => {
       amount,
       description: expenseDescription,
       expense_date: selectedDate,
+      version_id: activeVersion.id,
     });
 
     if (error) {
@@ -371,6 +378,10 @@ const Deposits = () => {
       </div>
     );
   };
+
+  if (!activeVersion) {
+    return <div className="text-center py-12 text-muted-foreground">جاري التحميل...</div>;
+  }
 
   return (
     <div className="space-y-6">
