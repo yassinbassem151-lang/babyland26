@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Package, CreditCard, Truck, User, Check, Search, MessageCircle } from 'lucide-react';
+import { ArrowRight, CreditCard, Truck, User, Check, Search, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,6 +10,7 @@ import { useCart, calculateItemTotal, getDescriptionMultiplier } from '@/context
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import Header from '@/components/Header';
+import ProductImage from '@/components/ProductImage';
 import logoImage from '@/assets/babyland-logo.jpg';
 
 // Old customers data - format: name | shopName | address | phone
@@ -515,8 +516,7 @@ const Checkout = () => {
           {/* Order Summary */}
           <Card className="border-2 border-primary/20 shadow-baby h-fit">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Package className="h-5 w-5 text-primary" />
+             <CardTitle className="flex items-center gap-2">
                 ملخص الطلب
               </CardTitle>
             </CardHeader>
@@ -529,9 +529,10 @@ const Checkout = () => {
                     const multiplier = getDescriptionMultiplier(item.description);
                     const itemTotal = calculateItemTotal(item);
                     return (
-                      <div key={item.id} className="flex justify-between items-center py-2 border-b border-border last:border-0">
-                        <div>
-                          <p className="font-medium">{item.name}</p>
+                      <div key={item.id} className="flex gap-3 items-center py-2 border-b border-border last:border-0">
+                        <ProductImage imageUrl={item.imageUrl} alt={item.name} size="sm" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">{item.name}</p>
                           <p className="text-sm text-muted-foreground">
                             {multiplier > 1 
                               ? `${item.quantity} × ${item.price} × ${multiplier} ج.م`
@@ -539,7 +540,7 @@ const Checkout = () => {
                             }
                           </p>
                         </div>
-                        <span className="font-bold">{itemTotal.toFixed(2)} ج.م</span>
+                        <span className="font-bold flex-shrink-0">{itemTotal.toFixed(2)} ج.م</span>
                       </div>
                     );
                   })}

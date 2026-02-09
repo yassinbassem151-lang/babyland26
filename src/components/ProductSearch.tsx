@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Search, Plus, Package } from 'lucide-react';
+import { Search, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useCart } from '@/contexts/CartContext';
 import { toast } from 'sonner';
+import ProductImage from '@/components/ProductImage';
 
 interface Product {
   id: string;
@@ -98,17 +99,7 @@ const ProductSearch = () => {
         <Card className="overflow-hidden border-2 border-primary/20 animate-scale-in">
           <CardContent className="p-4">
             <div className="flex gap-4">
-              {product.image_url ? (
-                <img
-                  src={product.image_url}
-                  alt={product.name}
-                  className="h-24 w-24 rounded-xl object-cover shadow-baby"
-                />
-              ) : (
-                <div className="h-24 w-24 rounded-xl bg-muted flex items-center justify-center">
-                  <Package className="h-10 w-10 text-muted-foreground" />
-                </div>
-              )}
+              <ProductImage imageUrl={product.image_url} alt={product.name} size="md" />
               <div className="flex-1">
                 <p className="text-sm text-muted-foreground">#{product.code}</p>
                 <h3 className="font-bold text-lg">{product.name}</h3>
