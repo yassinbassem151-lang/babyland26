@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import QRCode from 'qrcode';
 import { useVersion } from '@/contexts/VersionContext';
+import ProductImage from '@/components/ProductImage';
 
 interface Product {
   id: string;
@@ -18,6 +19,7 @@ interface Product {
   price: number;
   stock_quantity: number;
   low_stock_threshold: number;
+  image_url: string | null;
 }
 
 // XPrinter XP-370B dimensions in mm (1.57" x 0.79" with 0.05" margins)
@@ -457,9 +459,7 @@ const Products = () => {
             <Card key={product.id} className="overflow-hidden hover:shadow-baby transition-shadow">
               <CardContent className="p-4">
                 <div className="flex gap-3">
-                  <div className="h-16 w-16 rounded-lg bg-muted flex items-center justify-center">
-                    <Package className="h-8 w-8 text-muted-foreground" />
-                  </div>
+                  <ProductImage imageUrl={product.image_url} alt={product.name} size="sm" />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-muted-foreground">#{product.code}</p>
                     <h3 className="font-bold truncate">{product.name}</h3>

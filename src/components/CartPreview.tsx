@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
-import { Trash2, Plus, Minus, ShoppingBag, Package } from 'lucide-react';
+import { Trash2, Plus, Minus, ShoppingBag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useCart, calculateItemTotal, getDescriptionMultiplier } from '@/contexts/CartContext';
+import ProductImage from '@/components/ProductImage';
 
 const CartPreview = () => {
   const { items, removeItem, updateQuantity, subtotal, totalItems } = useCart();
@@ -41,17 +42,7 @@ const CartPreview = () => {
               key={item.id}
               className="flex gap-3 rounded-xl bg-muted/50 p-3 animate-fade-in"
             >
-              {item.imageUrl ? (
-                <img
-                  src={item.imageUrl}
-                  alt={item.name}
-                  className="h-16 w-16 rounded-lg object-cover"
-                />
-              ) : (
-                <div className="h-16 w-16 rounded-lg bg-muted flex items-center justify-center">
-                  <Package className="h-6 w-6 text-muted-foreground" />
-                </div>
-              )}
+              <ProductImage imageUrl={item.imageUrl} alt={item.name} size="sm" />
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-muted-foreground">#{item.code}</p>
                 <h4 className="font-medium truncate">{item.name}</h4>
