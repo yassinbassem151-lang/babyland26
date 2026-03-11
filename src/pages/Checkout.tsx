@@ -392,6 +392,28 @@ const Checkout = () => {
         if (itemsError) throw itemsError;
       }
 
+      // Send Telegram notification (fire and forget)
+      supabase.functions.invoke('send-telegram-notification', {
+        body: {
+          orderNumber: order.order_number,
+          customerName: formData.name,
+          shopName: formData.shopName,
+          phone: formData.phone,
+          address: formData.address,
+          items: items.map(item => ({
+            name: item.name,
+            code: item.code,
+            quantity: item.quantity,
+            price: item.price,
+          })),
+          subtotal,
+          total,
+          depositAmount: formData.depositAmount,
+          depositMethod: formData.depositMethod,
+          extraInfo: extraInfo,
+        },
+      }).catch(err => console.error('Telegram notification failed:', err));
+
       // Store order details for WhatsApp invoice
       setOrderDetails({
         items: [...items],
