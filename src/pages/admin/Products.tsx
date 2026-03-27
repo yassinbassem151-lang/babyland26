@@ -199,7 +199,7 @@ const Products = () => {
 
   const printAllLabels = async () => {
     try {
-      const sortedProducts = [...filteredProducts].sort((a, b) => {
+      const sortedProducts = [...printFilteredProducts].sort((a, b) => {
         const codeA = a.code.replace(/\D/g, '');
         const codeB = b.code.replace(/\D/g, '');
         if (codeA && codeB) return parseInt(codeA) - parseInt(codeB);
