@@ -392,6 +392,17 @@ const Checkout = () => {
         if (itemsError) throw itemsError;
       }
 
+      // Check stock levels after deduction
+      const productIds = items.map(item => item.productId);
+      const { data: updatedProducts } = await supabase
+        .from('products')
+        .select('id, code, name, stock_quantity, low_stock_threshold')
+        .in('id', productIds);
+
+      const lowStockProducts = updatedProducts?.filter(
+        p => p.stock_quantity <= p.low_stock_threshold
+      ) || [];
+
       // Send Telegram notification (fire and forget)
       supabase.functions.invoke('send-telegram-notification', {
         body: {
@@ -411,6 +422,11 @@ const Checkout = () => {
           depositAmount: formData.depositAmount,
           depositMethod: formData.depositMethod,
           extraInfo: extraInfo,
+          lowStockProducts: lowStockProducts.map(p => ({
+            code: p.code,
+            name: p.name,
+            remaining: p.stock_quantity,
+          })),
         },
       }).catch(err => console.error('Telegram notification failed:', err));
 
