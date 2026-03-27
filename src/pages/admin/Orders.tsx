@@ -478,48 +478,39 @@ const Orders = () => {
       </html>
     `;
 
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(invoiceHtml);
-      printWindow.document.close();
-      setTimeout(() => {
-        printWindow.print();
-      }, 500);
-    } else {
-      // Fallback for mobile browsers that block window.open
-      const blob = new Blob([invoiceHtml], { type: 'text/html' });
-      const url = URL.createObjectURL(blob);
-      const iframe = document.createElement('iframe');
-      iframe.style.position = 'fixed';
-      iframe.style.top = '0';
-      iframe.style.left = '0';
-      iframe.style.width = '100%';
-      iframe.style.height = '100%';
-      iframe.style.zIndex = '9999';
-      iframe.style.border = 'none';
-      iframe.style.background = 'white';
-      document.body.appendChild(iframe);
-      iframe.src = url;
-      iframe.onload = () => {
+    const isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+    if (!isMobile) {
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(invoiceHtml);
+        printWindow.document.close();
         setTimeout(() => {
-          try {
-            iframe.contentWindow?.print();
-          } catch {
-            // If print fails, at least show the invoice
-          }
-          // Add close button
-          const closeBtn = document.createElement('button');
-          closeBtn.textContent = '✕ إغلاق';
-          closeBtn.style.cssText = 'position:fixed;top:10px;left:10px;z-index:10000;padding:8px 16px;background:#ef4444;color:white;border:none;border-radius:8px;font-size:16px;cursor:pointer;';
-          closeBtn.onclick = () => {
-            document.body.removeChild(iframe);
-            document.body.removeChild(closeBtn);
-            URL.revokeObjectURL(url);
-          };
-          document.body.appendChild(closeBtn);
+          printWindow.print();
         }, 500);
-      };
+        return;
+      }
     }
+
+    // Mobile: inject print/close buttons into the HTML and open as a full-page overlay
+    const mobileHtml = invoiceHtml.replace('</body>', `
+      <div style="position:fixed;bottom:0;left:0;right:0;display:flex;gap:10px;padding:12px;background:#fff;border-top:2px solid #000;z-index:10000;justify-content:center;">
+        <button onclick="window.print()" style="flex:1;max-width:200px;padding:12px;font-size:16px;font-weight:bold;background:#2563eb;color:#fff;border:none;border-radius:8px;cursor:pointer;">🖨️ طباعة</button>
+        <button onclick="document.getElementById('mobile-invoice-overlay').remove()" style="flex:1;max-width:200px;padding:12px;font-size:16px;font-weight:bold;background:#ef4444;color:#fff;border:none;border-radius:8px;cursor:pointer;">✕ إغلاق</button>
+      </div>
+    </body>`);
+
+    const blob = new Blob([mobileHtml], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+
+    // Open in a new tab — works on most mobile browsers
+    const newTab = window.open(url, '_blank');
+    if (!newTab) {
+      // If popup blocked, use location redirect
+      window.location.href = url;
+    }
+    // Clean up blob URL after a delay
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
   };
 
   const filteredOrders = searchCode
