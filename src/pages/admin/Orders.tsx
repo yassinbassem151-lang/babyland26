@@ -482,7 +482,43 @@ const Orders = () => {
     if (printWindow) {
       printWindow.document.write(invoiceHtml);
       printWindow.document.close();
-      printWindow.print();
+      setTimeout(() => {
+        printWindow.print();
+      }, 500);
+    } else {
+      // Fallback for mobile browsers that block window.open
+      const blob = new Blob([invoiceHtml], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.top = '0';
+      iframe.style.left = '0';
+      iframe.style.width = '100%';
+      iframe.style.height = '100%';
+      iframe.style.zIndex = '9999';
+      iframe.style.border = 'none';
+      iframe.style.background = 'white';
+      document.body.appendChild(iframe);
+      iframe.src = url;
+      iframe.onload = () => {
+        setTimeout(() => {
+          try {
+            iframe.contentWindow?.print();
+          } catch {
+            // If print fails, at least show the invoice
+          }
+          // Add close button
+          const closeBtn = document.createElement('button');
+          closeBtn.textContent = '✕ إغلاق';
+          closeBtn.style.cssText = 'position:fixed;top:10px;left:10px;z-index:10000;padding:8px 16px;background:#ef4444;color:white;border:none;border-radius:8px;font-size:16px;cursor:pointer;';
+          closeBtn.onclick = () => {
+            document.body.removeChild(iframe);
+            document.body.removeChild(closeBtn);
+            URL.revokeObjectURL(url);
+          };
+          document.body.appendChild(closeBtn);
+        }, 500);
+      };
     }
   };
 
