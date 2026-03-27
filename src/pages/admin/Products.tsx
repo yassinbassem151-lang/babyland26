@@ -212,8 +212,11 @@ const Products = () => {
           <img src="${qrDataUrl}" alt="QR" class="qr-code" />
         </div>
         <div class="info">
-          <div class="code">${product.code}</div>
-          <div class="price">${product.price} ج.م</div>
+          <div class="name">${product.name}</div>
+          <div class="bottom-row">
+            <span class="code">${product.code}</span>
+            <span class="price">${product.price} ج.م</span>
+          </div>
         </div>
       </div>
     `).join('');
@@ -250,7 +253,7 @@ const Products = () => {
             flex-direction: row-reverse;
             align-items: center;
             justify-content: flex-start;
-            gap: 2mm;
+            gap: 1.5mm;
             page-break-after: always;
             overflow: hidden;
           }
@@ -259,15 +262,15 @@ const Products = () => {
           }
           .qr-container {
             flex-shrink: 0;
-            width: 18mm;
-            height: 18mm;
+            width: 16mm;
+            height: 16mm;
             display: flex;
             align-items: center;
             justify-content: center;
           }
           .qr-code {
-            width: 18mm;
-            height: 18mm;
+            width: 16mm;
+            height: 16mm;
             object-fit: contain;
           }
           .info {
@@ -276,24 +279,38 @@ const Products = () => {
             flex-direction: column;
             justify-content: center;
             align-items: flex-end;
-            gap: 1mm;
+            gap: 0.5mm;
             min-width: 0;
             text-align: right;
-            padding-right: 2mm;
+            padding-right: 1mm;
+          }
+          .name {
+            font-size: 6pt;
+            color: #000;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 20mm;
+            direction: rtl;
+          }
+          .bottom-row {
+            display: flex;
+            flex-direction: row-reverse;
+            justify-content: space-between;
+            width: 100%;
+            gap: 1mm;
           }
           .code {
-            font-size: 9pt;
+            font-size: 8pt;
             font-weight: bold;
             color: #000;
             white-space: nowrap;
-            overflow: visible;
           }
           .price {
-            font-size: 9pt;
+            font-size: 8pt;
             font-weight: bold;
             color: #000;
             white-space: nowrap;
-            overflow: visible;
           }
           @media print {
             body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
