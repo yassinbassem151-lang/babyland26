@@ -289,8 +289,8 @@ const Products = () => {
             gap: 0.4mm;
           }
           .qr-code {
-            width: 11.5mm;
-            height: 11.5mm;
+            width: 13mm;
+            height: 13mm;
             object-fit: contain;
             image-rendering: crisp-edges;
           }
