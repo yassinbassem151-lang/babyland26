@@ -208,15 +208,13 @@ const Products = () => {
   const printLabels = (labels: { product: Product; qrDataUrl: string }[]) => {
     const labelsHtml = labels.map(({ product, qrDataUrl }) => `
       <div class="label">
-        <div class="qr-container">
-          <img src="${qrDataUrl}" alt="QR" class="qr-code" />
-        </div>
         <div class="info">
+          <div class="code">${product.code}</div>
+          <div class="price">${product.price} ج.م</div>
+        </div>
+        <div class="qr-section">
+          <img src="${qrDataUrl}" alt="QR" class="qr-code" />
           <div class="name">${product.name}</div>
-          <div class="bottom-row">
-            <span class="code">${product.code}</span>
-            <span class="price">${product.price} ج.م</span>
-          </div>
         </div>
       </div>
     `).join('');
@@ -253,25 +251,35 @@ const Products = () => {
             flex-direction: row-reverse;
             align-items: center;
             justify-content: flex-start;
-            gap: 1.5mm;
+            gap: 1mm;
             page-break-after: always;
             overflow: hidden;
           }
           .label:last-child {
             page-break-after: auto;
           }
-          .qr-container {
+          .qr-section {
             flex-shrink: 0;
-            width: 16mm;
-            height: 16mm;
             display: flex;
+            flex-direction: column;
             align-items: center;
-            justify-content: center;
+            gap: 0.3mm;
           }
           .qr-code {
-            width: 16mm;
-            height: 16mm;
+            width: 14mm;
+            height: 14mm;
             object-fit: contain;
+          }
+          .name {
+            font-size: 5.5pt;
+            color: #000;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 18mm;
+            direction: rtl;
+            font-weight: bold;
           }
           .info {
             flex: 1;
@@ -279,35 +287,19 @@ const Products = () => {
             flex-direction: column;
             justify-content: center;
             align-items: flex-end;
-            gap: 0.5mm;
+            gap: 1mm;
             min-width: 0;
             text-align: right;
             padding-right: 1mm;
           }
-          .name {
-            font-size: 6pt;
-            color: #000;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 20mm;
-            direction: rtl;
-          }
-          .bottom-row {
-            display: flex;
-            flex-direction: row-reverse;
-            justify-content: space-between;
-            width: 100%;
-            gap: 1mm;
-          }
           .code {
-            font-size: 8pt;
+            font-size: 9pt;
             font-weight: bold;
             color: #000;
             white-space: nowrap;
           }
           .price {
-            font-size: 8pt;
+            font-size: 9pt;
             font-weight: bold;
             color: #000;
             white-space: nowrap;
