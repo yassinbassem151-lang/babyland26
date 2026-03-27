@@ -246,12 +246,11 @@ const Products = () => {
           .label {
             width: ${LABEL_WIDTH_MM}mm;
             height: ${LABEL_HEIGHT_MM}mm;
-            padding: ${MARGIN_MM}mm;
-            display: flex;
-            flex-direction: row;
-            align-items: stretch;
-            justify-content: space-between;
-            gap: 0;
+            padding: 1.1mm 1.4mm 0.9mm 2mm;
+            display: grid;
+            grid-template-columns: 1fr 17.5mm;
+            align-items: center;
+            column-gap: 0.7mm;
             page-break-after: always;
             overflow: hidden;
           }
@@ -259,50 +258,55 @@ const Products = () => {
             page-break-after: auto;
           }
           .info {
+            min-width: 0;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: flex-start;
-            gap: 1mm;
-            padding-left: 1mm;
+            gap: 0.8mm;
           }
           .code {
-            font-size: 10pt;
+            font-size: 9pt;
             font-weight: bold;
             color: #000;
             white-space: nowrap;
           }
           .price {
-            font-size: 10pt;
+            font-size: 9pt;
             font-weight: bold;
             color: #000;
             white-space: nowrap;
           }
           .qr-section {
-            flex-shrink: 0;
-            width: 18mm;
+            width: 17.5mm;
+            height: 100%;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            gap: 0;
+            justify-content: flex-start;
+            padding-top: 0.2mm;
+            gap: 0.4mm;
           }
           .qr-code {
-            width: 12mm;
-            height: 12mm;
+            width: 11.5mm;
+            height: 11.5mm;
             object-fit: contain;
+            image-rendering: crisp-edges;
           }
           .name {
-            font-size: 6pt;
+            font-size: 6.8pt;
             color: #000;
             text-align: center;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 18mm;
             direction: rtl;
             font-weight: bold;
-            line-height: 1.2;
+            line-height: 1.05;
+            width: 16.8mm;
+            min-height: 4.2mm;
+            overflow: hidden;
+            word-break: break-word;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
           }
           @media print {
             body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
