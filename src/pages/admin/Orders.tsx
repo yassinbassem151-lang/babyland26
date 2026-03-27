@@ -394,8 +394,27 @@ const Orders = () => {
     }
   };
 
-  const generateInvoice = (order: Order) => {
+  const getLogoBase64 = (): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL('image/jpeg', 0.9));
+      };
+      img.onerror = () => resolve('');
+      img.src = logoImage;
+    });
+  };
+
+  const generateInvoice = async (order: Order) => {
     if (!order.items) return;
+
+    const logoBase64 = await getLogoBase64();
 
     // Calculate totals with description multiplier
     const calculatedSubtotal = order.items.reduce((sum, item) => sum + calculateItemTotal(item), 0);
@@ -425,7 +444,7 @@ const Orders = () => {
       </head>
       <body>
         <div class="header">
-          <img src="${logoImage}" alt="Babyland Logo" />
+          ${logoBase64 ? `<img src="${logoBase64}" alt="Babyland Logo" />` : ''}
           <h1>Babyland</h1>
           <p>Kids in Style</p>
           <h2>فاتورة رقم ${order.order_number}</h2>
