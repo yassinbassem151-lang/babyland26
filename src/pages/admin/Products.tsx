@@ -354,10 +354,10 @@ const Products = () => {
   };
 
   const toggleSelectAll = () => {
-    if (selectedForPrint.size === filteredProducts.length) {
+    if (selectedForPrint.size === printFilteredProducts.length) {
       setSelectedForPrint(new Set());
     } else {
-      setSelectedForPrint(new Set(filteredProducts.map(p => p.id)));
+      setSelectedForPrint(new Set(printFilteredProducts.map(p => p.id)));
     }
   };
 
