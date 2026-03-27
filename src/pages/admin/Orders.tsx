@@ -444,7 +444,7 @@ const Orders = () => {
       </head>
       <body>
         <div class="header">
-          <img src="${logoImage}" alt="Babyland Logo" />
+          ${logoBase64 ? `<img src="${logoBase64}" alt="Babyland Logo" />` : ''}
           <h1>Babyland</h1>
           <p>Kids in Style</p>
           <h2>فاتورة رقم ${order.order_number}</h2>
