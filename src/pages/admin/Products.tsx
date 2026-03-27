@@ -262,8 +262,9 @@ const Products = () => {
             display: flex;
             flex-direction: column;
             justify-content: center;
-            align-items: flex-start;
+            align-items: flex-end;
             gap: 0.8mm;
+            text-align: right;
           }
           .code {
             font-size: 9pt;
