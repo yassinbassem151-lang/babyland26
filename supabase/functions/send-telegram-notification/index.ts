@@ -19,7 +19,7 @@ Deno.serve(async (req) => {
       throw new Error('TELEGRAM_CHAT_ID is not configured');
     }
 
-    const { orderNumber, customerName, shopName, phone, address, items, subtotal, total, depositAmount, depositMethod, extraInfo } = await req.json();
+    const { orderNumber, customerName, shopName, phone, address, items, subtotal, total, depositAmount, depositMethod, extraInfo, lowStockProducts } = await req.json();
 
     // Build message
     let message = `🧸 *طلب جديد \\#${orderNumber}*\n\n`;
@@ -48,6 +48,16 @@ Deno.serve(async (req) => {
       message += `💵 *العربون \\(${escapeMarkdown(methodLabel)}\\):* ${depositAmount} ج\\.م\n`;
     }
     message += `✅ *المطلوب:* ${total} ج\\.م`;
+
+    // Add low stock alert if any
+    if (lowStockProducts && Array.isArray(lowStockProducts) && lowStockProducts.length > 0) {
+      message += `\n\n🚨🚨 *تنبيه نقص المخزون* 🚨🚨\n\n`;
+      lowStockProducts.forEach((p: any) => {
+        const statusEmoji = p.remaining <= 0 ? '🔴' : '🟡';
+        const statusText = p.remaining <= 0 ? 'نفذ من المخزون' : `متبقي ${p.remaining} قطعة فقط`;
+        message += `${statusEmoji} ${escapeMarkdown(p.code)} \\- ${escapeMarkdown(p.name)}: *${escapeMarkdown(statusText)}*\n`;
+      });
+    }
 
     const telegramUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
     const response = await fetch(telegramUrl, {
