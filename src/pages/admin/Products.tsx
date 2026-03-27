@@ -248,30 +248,52 @@ const Products = () => {
             height: ${LABEL_HEIGHT_MM}mm;
             padding: ${MARGIN_MM}mm;
             display: flex;
-            flex-direction: row-reverse;
-            align-items: center;
-            justify-content: flex-start;
-            gap: 1mm;
+            flex-direction: row;
+            align-items: stretch;
+            justify-content: space-between;
+            gap: 0;
             page-break-after: always;
             overflow: hidden;
           }
           .label:last-child {
             page-break-after: auto;
           }
+          .info {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 1mm;
+            padding-left: 1mm;
+          }
+          .code {
+            font-size: 10pt;
+            font-weight: bold;
+            color: #000;
+            white-space: nowrap;
+          }
+          .price {
+            font-size: 10pt;
+            font-weight: bold;
+            color: #000;
+            white-space: nowrap;
+          }
           .qr-section {
             flex-shrink: 0;
+            width: 18mm;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 0.3mm;
+            justify-content: center;
+            gap: 0;
           }
           .qr-code {
-            width: 14mm;
-            height: 14mm;
+            width: 12mm;
+            height: 12mm;
             object-fit: contain;
           }
           .name {
-            font-size: 5.5pt;
+            font-size: 6pt;
             color: #000;
             text-align: center;
             white-space: nowrap;
@@ -280,29 +302,7 @@ const Products = () => {
             max-width: 18mm;
             direction: rtl;
             font-weight: bold;
-          }
-          .info {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: flex-end;
-            gap: 1mm;
-            min-width: 0;
-            text-align: right;
-            padding-right: 1mm;
-          }
-          .code {
-            font-size: 9pt;
-            font-weight: bold;
-            color: #000;
-            white-space: nowrap;
-          }
-          .price {
-            font-size: 9pt;
-            font-weight: bold;
-            color: #000;
-            white-space: nowrap;
+            line-height: 1.2;
           }
           @media print {
             body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
