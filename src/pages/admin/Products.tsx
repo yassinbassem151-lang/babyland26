@@ -39,6 +39,7 @@ const Products = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [printDialogOpen, setPrintDialogOpen] = useState(false);
   const [selectedForPrint, setSelectedForPrint] = useState<Set<string>>(new Set());
+  const [printSearchCode, setPrintSearchCode] = useState('');
 
   const [formData, setFormData] = useState({
     code: '',
