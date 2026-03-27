@@ -77,6 +77,12 @@ const Products = () => {
     ? products.filter((p) => p.code.toLowerCase().includes(searchCode.toLowerCase()))
     : products;
 
+  const printFilteredProducts = printSearchCode
+    ? products.filter((p) => 
+        p.code.toLowerCase().includes(printSearchCode.toLowerCase()) ||
+        p.name.toLowerCase().includes(printSearchCode.toLowerCase())
+      )
+    : products;
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeVersion) return;
