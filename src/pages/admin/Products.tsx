@@ -551,15 +551,25 @@ const Products = () => {
       </Dialog>
 
       {/* Print Selection Dialog */}
-      <Dialog open={printDialogOpen} onOpenChange={setPrintDialogOpen}>
+      <Dialog open={printDialogOpen} onOpenChange={(open) => { setPrintDialogOpen(open); if (!open) setPrintSearchCode(''); }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>طباعة الباركود</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="flex gap-2">
+            <div className="relative">
+              <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="بحث بالكود أو الاسم..."
+                value={printSearchCode}
+                onChange={(e) => setPrintSearchCode(e.target.value)}
+                className="pr-10"
+                dir="rtl"
+              />
+            </div>
+            <div className="flex gap-2 flex-wrap">
               <Button variant="outline" onClick={toggleSelectAll} className="gap-2">
-                {selectedForPrint.size === filteredProducts.length ? (
+                {selectedForPrint.size === printFilteredProducts.length ? (
                   <CheckSquare className="h-4 w-4" />
                 ) : (
                   <Square className="h-4 w-4" />
@@ -567,14 +577,14 @@ const Products = () => {
                 تحديد الكل
               </Button>
               <Button variant="outline" onClick={printAllLabels}>
-                طباعة الكل ({filteredProducts.length})
+                طباعة الكل ({printFilteredProducts.length})
               </Button>
               <Button onClick={printSelectedLabels} disabled={selectedForPrint.size === 0}>
                 طباعة المحدد ({selectedForPrint.size})
               </Button>
             </div>
             <div className="max-h-60 overflow-y-auto border rounded-lg">
-              {filteredProducts.map((product) => (
+              {printFilteredProducts.map((product) => (
                 <div
                   key={product.id}
                   className="flex items-center gap-3 p-3 hover:bg-muted cursor-pointer border-b last:border-b-0"
