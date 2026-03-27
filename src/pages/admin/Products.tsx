@@ -192,8 +192,14 @@ const Products = () => {
 
   const printAllLabels = async () => {
     try {
+      const sortedProducts = [...filteredProducts].sort((a, b) => {
+        const codeA = a.code.replace(/\D/g, '');
+        const codeB = b.code.replace(/\D/g, '');
+        if (codeA && codeB) return parseInt(codeA) - parseInt(codeB);
+        return a.code.localeCompare(b.code);
+      });
       const labelData = await Promise.all(
-        filteredProducts.map(async (product) => {
+        sortedProducts.map(async (product) => {
           const qrDataUrl = await generateQRDataUrl(product.code);
           return { product, qrDataUrl };
         })
