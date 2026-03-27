@@ -262,8 +262,9 @@ const Products = () => {
             display: flex;
             flex-direction: column;
             justify-content: center;
-            align-items: flex-start;
+            align-items: flex-end;
             gap: 0.8mm;
+            text-align: right;
           }
           .code {
             font-size: 9pt;
@@ -288,8 +289,8 @@ const Products = () => {
             gap: 0.4mm;
           }
           .qr-code {
-            width: 11.5mm;
-            height: 11.5mm;
+            width: 13mm;
+            height: 13mm;
             object-fit: contain;
             image-rendering: crisp-edges;
           }
