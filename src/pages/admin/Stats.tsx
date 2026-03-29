@@ -67,7 +67,13 @@ const Stats = () => {
       lowStockProducts: lowStock.data?.length || 0,
     });
 
-    if (alerts.data) setStockAlerts(alerts.data as StockAlert[]);
+    if (alerts.data) {
+      setStockAlerts(alerts.data as StockAlert[]);
+      const ackIds = new Set(
+        (alerts.data as StockAlert[]).filter(a => a.acknowledged).map(a => a.product_id)
+      );
+      setAcknowledgedProductIds(ackIds);
+    }
     if (lowStock.data) setLowStockItems(lowStock.data);
   };
 
