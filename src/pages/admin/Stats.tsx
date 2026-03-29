@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Package, ShoppingCart, Users, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Package, ShoppingCart, Users, TrendingUp, AlertTriangle, Check } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useVersion } from '@/contexts/VersionContext';
+import { toast } from 'sonner';
 
 interface Stats {
   totalProducts: number;
@@ -10,6 +13,18 @@ interface Stats {
   totalCustomers: number;
   totalRevenue: number;
   lowStockProducts: number;
+}
+
+interface StockAlert {
+  id: string;
+  product_id: string;
+  product_code: string;
+  product_name: string;
+  remaining_quantity: number;
+  acknowledged: boolean;
+  acknowledged_at: string | null;
+  created_at: string;
+  version_id: string;
 }
 
 const Stats = () => {
@@ -21,7 +36,7 @@ const Stats = () => {
     totalRevenue: 0,
     lowStockProducts: 0,
   });
-  const [lowStockItems, setLowStockItems] = useState<any[]>([]);
+  const [stockAlerts, setStockAlerts] = useState<StockAlert[]>([]);
 
   useEffect(() => {
     if (activeVersion) {
@@ -32,11 +47,11 @@ const Stats = () => {
   const loadStats = async () => {
     if (!activeVersion) return;
 
-    const [products, orders, customers, lowStock] = await Promise.all([
+    const [products, orders, customers, alerts] = await Promise.all([
       supabase.from('products').select('id', { count: 'exact' }).eq('version_id', activeVersion.id),
       supabase.from('orders').select('total').eq('version_id', activeVersion.id),
       supabase.from('customers').select('id', { count: 'exact' }).eq('version_id', activeVersion.id),
-      supabase.from('products').select('*').eq('version_id', activeVersion.id).filter('stock_quantity', 'lte', 10),
+      supabase.from('stock_alerts').select('*').eq('version_id', activeVersion.id).order('created_at', { ascending: false }),
     ]);
 
     const totalRevenue = orders.data?.reduce((sum, o) => sum + (o.total || 0), 0) || 0;
@@ -46,10 +61,24 @@ const Stats = () => {
       totalOrders: orders.data?.length || 0,
       totalCustomers: customers.count || 0,
       totalRevenue,
-      lowStockProducts: lowStock.data?.length || 0,
+      lowStockProducts: alerts.data?.filter(a => !a.acknowledged).length || 0,
     });
 
-    if (lowStock.data) setLowStockItems(lowStock.data);
+    if (alerts.data) setStockAlerts(alerts.data as StockAlert[]);
+  };
+
+  const handleAcknowledge = async (alertId: string) => {
+    const { error } = await supabase
+      .from('stock_alerts')
+      .update({ acknowledged: true, acknowledged_at: new Date().toISOString() })
+      .eq('id', alertId);
+
+    if (error) {
+      toast.error('فشل في تحديث التنبيه');
+    } else {
+      toast.success('تم تأكيد التنبيه');
+      loadStats();
+    }
   };
 
   const statCards = [
@@ -58,6 +87,9 @@ const Stats = () => {
     { title: 'العملاء', value: stats.totalCustomers, icon: Users, color: 'text-primary' },
     { title: 'الإيرادات', value: `${stats.totalRevenue.toFixed(2)} ج.م`, icon: TrendingUp, color: 'text-secondary' },
   ];
+
+  const newAlerts = stockAlerts.filter(a => !a.acknowledged);
+  const acknowledgedAlerts = stockAlerts.filter(a => a.acknowledged);
 
   if (!activeVersion) {
     return <div className="text-center py-12 text-muted-foreground">جاري التحميل...</div>;
@@ -88,29 +120,62 @@ const Stats = () => {
         })}
       </div>
 
-      {/* Low Stock Alert */}
-      {lowStockItems.length > 0 && (
+      {/* Stock Alerts */}
+      {stockAlerts.length > 0 && (
         <Card className="border-2 border-destructive/30 bg-destructive/5">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="h-5 w-5" />
-              تنبيه المخزون المنخفض ({lowStockItems.length} منتج)
+            <CardTitle className="flex items-center justify-between">
+              <span className="flex items-center gap-2 text-destructive">
+                <AlertTriangle className="h-5 w-5" />
+                تنبيه المخزون المنخفض ({stockAlerts.length} منتج)
+              </span>
+              {newAlerts.length > 0 && (
+                <Badge variant="destructive">{newAlerts.length} جديد</Badge>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {lowStockItems.map((item) => (
+              {newAlerts.map((alert) => (
                 <div
-                  key={item.id}
-                  className="flex items-center justify-between p-3 rounded-lg bg-background"
+                  key={alert.id}
+                  className="flex items-center justify-between p-3 rounded-lg bg-destructive/10 border border-destructive/30"
                 >
-                  <div>
-                    <p className="font-medium">{item.name}</p>
-                    <p className="text-sm text-muted-foreground">#{item.code}</p>
+                  <div className="flex items-center gap-3">
+                    <span className="text-lg">{alert.remaining_quantity <= 0 ? '🔴' : '🟡'}</span>
+                    <div>
+                      <p className="font-medium">{alert.product_name}</p>
+                      <p className="text-sm text-muted-foreground">#{alert.product_code}</p>
+                    </div>
                   </div>
-                  <span className={`font-bold ${item.stock_quantity === 0 ? 'text-destructive' : 'text-amber-500'}`}>
-                    {item.stock_quantity} متبقي
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className={`font-bold ${alert.remaining_quantity === 0 ? 'text-destructive' : 'text-amber-500'}`}>
+                      {alert.remaining_quantity} متبقي
+                    </span>
+                    <Button
+                      size="sm"
+                      onClick={() => handleAcknowledge(alert.id)}
+                      className="bg-green-600 hover:bg-green-700 text-white gap-1"
+                    >
+                      <Check className="h-4 w-4" />
+                      تم
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              {acknowledgedAlerts.map((alert) => (
+                <div
+                  key={alert.id}
+                  className="flex items-center justify-between p-3 rounded-lg bg-green-50 border border-green-300 opacity-70"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-lg">✅</span>
+                    <div>
+                      <p className="font-medium">{alert.product_name}</p>
+                      <p className="text-sm text-muted-foreground">#{alert.product_code}</p>
+                    </div>
+                  </div>
+                  <Badge className="bg-green-100 text-green-800">تم التأكيد</Badge>
                 </div>
               ))}
             </div>
