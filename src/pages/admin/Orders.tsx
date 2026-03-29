@@ -36,6 +36,8 @@ interface Order {
   status: string;
   created_at: string;
   extra_info: string | null;
+  staff_member_id: string | null;
+  staff_member_name: string | null;
   items?: OrderItem[];
 }
 
@@ -581,6 +583,15 @@ const Orders = () => {
                     <div>
                       <p className="font-bold">{order.customer_name}</p>
                       <p className="text-sm text-muted-foreground">{order.phone}</p>
+                      {order.staff_member_name ? (
+                        <Badge className="bg-purple-100 text-purple-800 mt-1">
+                          👷 موظف: {order.staff_member_name}
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-blue-100 text-blue-800 mt-1">
+                          👤 عميل
+                        </Badge>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-4">

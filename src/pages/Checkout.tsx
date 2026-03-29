@@ -349,6 +349,10 @@ const Checkout = () => {
       const { data: nextOrderNum } = await supabase.rpc('get_next_order_number', { p_version_id: versionId });
       const orderNumber = nextOrderNum || 1;
 
+      // Check if staff member is logged in
+      const staffSession = sessionStorage.getItem('babyland_staff');
+      const staffData = staffSession ? JSON.parse(staffSession) : null;
+
       // Create order
       const { data: order, error: orderError } = await supabase
         .from('orders')
@@ -367,7 +371,9 @@ const Checkout = () => {
           extra_info: extraInfo || null,
           version_id: versionId,
           order_number: orderNumber,
-        })
+          staff_member_id: staffData?.id || null,
+          staff_member_name: staffData?.name || null,
+        } as any)
         .select('id, order_number')
         .single();
 
@@ -403,6 +409,22 @@ const Checkout = () => {
         p => p.stock_quantity <= p.low_stock_threshold
       ) || [];
 
+      // Save stock alerts to database
+      if (lowStockProducts.length > 0) {
+        const alertInserts = lowStockProducts.map(p => ({
+          product_id: p.id,
+          product_code: p.code,
+          product_name: p.name,
+          remaining_quantity: p.stock_quantity,
+          version_id: versionId,
+        }));
+        try {
+          await supabase.from('stock_alerts').insert(alertInserts as any);
+        } catch (err) {
+          console.error('Failed to save stock alerts:', err);
+        }
+      }
+
       // Send Telegram notification (fire and forget)
       supabase.functions.invoke('send-telegram-notification', {
         body: {
@@ -411,6 +433,7 @@ const Checkout = () => {
           shopName: formData.shopName,
           phone: formData.phone,
           address: formData.address,
+          staffName: staffData?.name || null,
           items: items.map(item => ({
             name: item.name,
             code: item.code,

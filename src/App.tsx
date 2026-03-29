@@ -16,6 +16,8 @@ import Deposits from "./pages/admin/Deposits";
 import SearchByCode from "./pages/admin/SearchByCode";
 import CustomerExtraInfo from "./pages/admin/CustomerExtraInfo";
 import ProductImages from "./pages/admin/ProductImages";
+import StockAlerts from "./pages/admin/StockAlerts";
+import StaffManagement from "./pages/admin/StaffManagement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,6 +42,8 @@ const App = () => (
               <Route path="search-by-code" element={<SearchByCode />} />
               <Route path="customer-extra-info" element={<CustomerExtraInfo />} />
               <Route path="product-images" element={<ProductImages />} />
+              <Route path="stock-alerts" element={<StockAlerts />} />
+              <Route path="staff" element={<StaffManagement />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Eye, EyeOff } from 'lucide-react';
+import { Lock, Eye, EyeOff, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import babylandLogo from '@/assets/babyland-logo.jpg';
 
 const ADMIN_PASSWORD = '1980';
@@ -13,16 +14,44 @@ const AdminLogin = () => {
   const navigate = useNavigate();
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loginMode, setLoginMode] = useState<'admin' | 'staff'>('admin');
+  const [staffName, setStaffName] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (password === ADMIN_PASSWORD) {
-      sessionStorage.setItem('babyland_admin', 'true');
-      toast.success('تم تسجيل الدخول بنجاح');
-      navigate('/admin/dashboard');
+    if (loginMode === 'admin') {
+      if (password === ADMIN_PASSWORD) {
+        sessionStorage.setItem('babyland_admin', 'true');
+        toast.success('تم تسجيل الدخول بنجاح');
+        navigate('/admin/dashboard');
+      } else {
+        toast.error('كلمة المرور غير صحيحة');
+      }
     } else {
-      toast.error('كلمة المرور غير صحيحة');
+      // Staff login
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('staff_members')
+        .select('*')
+        .eq('password', password)
+        .eq('is_active', true);
+
+      setLoading(false);
+
+      if (error || !data || data.length === 0) {
+        toast.error('كلمة المرور غير صحيحة أو الحساب غير نشط');
+        return;
+      }
+
+      const staffMember = data[0];
+      sessionStorage.setItem('babyland_staff', JSON.stringify({
+        id: staffMember.id,
+        name: staffMember.name,
+      }));
+      toast.success(`مرحباً ${staffMember.name}`);
+      navigate('/');
     }
   };
 
@@ -35,23 +64,55 @@ const AdminLogin = () => {
             alt="Babyland"
             className="w-24 h-24 mx-auto rounded-full shadow-baby float-animation"
           />
-          <CardTitle className="text-2xl gradient-text">لوحة التحكم</CardTitle>
+          <CardTitle className="text-2xl gradient-text">
+            {loginMode === 'admin' ? 'لوحة التحكم' : 'تسجيل دخول الموظفين'}
+          </CardTitle>
+          {/* Toggle between admin and staff */}
+          <div className="flex gap-2 justify-center">
+            <Button
+              type="button"
+              variant={loginMode === 'admin' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => { setLoginMode('admin'); setPassword(''); }}
+            >
+              <Lock className="h-4 w-4 ml-1" />
+              أدمن
+            </Button>
+            <Button
+              type="button"
+              variant={loginMode === 'staff' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => { setLoginMode('staff'); setPassword(''); }}
+            >
+              <Users className="h-4 w-4 ml-1" />
+              موظف
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-6">
             <div className="space-y-2">
               <label className="text-sm font-medium flex items-center gap-2">
                 <Lock className="h-4 w-4 text-muted-foreground" />
-                كلمة المرور
+                كلمة المرور {loginMode === 'staff' ? '(4 أرقام)' : ''}
               </label>
               <div className="relative">
                 <Input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="أدخل كلمة المرور"
+                  onChange={(e) => {
+                    if (loginMode === 'staff') {
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                      setPassword(val);
+                    } else {
+                      setPassword(e.target.value);
+                    }
+                  }}
+                  placeholder={loginMode === 'staff' ? 'أدخل الـ 4 أرقام' : 'أدخل كلمة المرور'}
                   className="pl-10"
                   dir="ltr"
+                  inputMode={loginMode === 'staff' ? 'numeric' : undefined}
+                  maxLength={loginMode === 'staff' ? 4 : undefined}
                 />
                 <button
                   type="button"
@@ -64,9 +125,10 @@ const AdminLogin = () => {
             </div>
             <Button
               type="submit"
+              disabled={loading}
               className="w-full rounded-xl py-6 text-lg font-bold bg-gradient-to-l from-primary to-secondary"
             >
-              دخول
+              {loading ? 'جاري الدخول...' : 'دخول'}
             </Button>
           </form>
         </CardContent>
