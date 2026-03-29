@@ -37,6 +37,7 @@ const Stats = () => {
     lowStockProducts: 0,
   });
   const [stockAlerts, setStockAlerts] = useState<StockAlert[]>([]);
+  const [lowStockItems, setLowStockItems] = useState<any[]>([]);
 
   useEffect(() => {
     if (activeVersion) {
@@ -47,11 +48,12 @@ const Stats = () => {
   const loadStats = async () => {
     if (!activeVersion) return;
 
-    const [products, orders, customers, alerts] = await Promise.all([
+    const [products, orders, customers, alerts, lowStock] = await Promise.all([
       supabase.from('products').select('id', { count: 'exact' }).eq('version_id', activeVersion.id),
       supabase.from('orders').select('total').eq('version_id', activeVersion.id),
       supabase.from('customers').select('id', { count: 'exact' }).eq('version_id', activeVersion.id),
       supabase.from('stock_alerts').select('*').eq('version_id', activeVersion.id).order('created_at', { ascending: false }),
+      supabase.from('products').select('*').eq('version_id', activeVersion.id).filter('stock_quantity', 'lte', 10),
     ]);
 
     const totalRevenue = orders.data?.reduce((sum, o) => sum + (o.total || 0), 0) || 0;
@@ -61,10 +63,11 @@ const Stats = () => {
       totalOrders: orders.data?.length || 0,
       totalCustomers: customers.count || 0,
       totalRevenue,
-      lowStockProducts: alerts.data?.filter(a => !a.acknowledged).length || 0,
+      lowStockProducts: lowStock.data?.length || 0,
     });
 
     if (alerts.data) setStockAlerts(alerts.data as StockAlert[]);
+    if (lowStock.data) setLowStockItems(lowStock.data);
   };
 
   const handleAcknowledge = async (alertId: string) => {
