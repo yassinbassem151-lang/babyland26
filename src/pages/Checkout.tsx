@@ -354,31 +354,26 @@ const Checkout = () => {
       const staffData = staffSession ? JSON.parse(staffSession) : null;
 
       // Create order
-      const orderInsert: Record<string, unknown> = {
-        customer_id: customerId,
-        customer_name: formData.name,
-        shop_name: formData.shopName || null,
-        phone: formData.phone,
-        address: formData.address || null,
-        delivery_date: formData.deliveryDate || null,
-        shipping_company: formData.shippingCompany || null,
-        deposit_method: formData.depositMethod || null,
-        deposit_amount: formData.depositAmount,
-        subtotal: subtotal,
-        total: total,
-        extra_info: extraInfo || null,
-        version_id: versionId,
-        order_number: orderNumber,
-      };
-
-      if (staffData) {
-        orderInsert.staff_member_id = staffData.id;
-        orderInsert.staff_member_name = staffData.name;
-      }
-
       const { data: order, error: orderError } = await supabase
         .from('orders')
-        .insert(orderInsert)
+        .insert({
+          customer_id: customerId,
+          customer_name: formData.name,
+          shop_name: formData.shopName || null,
+          phone: formData.phone,
+          address: formData.address || null,
+          delivery_date: formData.deliveryDate || null,
+          shipping_company: formData.shippingCompany || null,
+          deposit_method: formData.depositMethod || null,
+          deposit_amount: formData.depositAmount,
+          subtotal: subtotal,
+          total: total,
+          extra_info: extraInfo || null,
+          version_id: versionId,
+          order_number: orderNumber,
+          staff_member_id: staffData?.id || null,
+          staff_member_name: staffData?.name || null,
+        } as any)
         .select('id, order_number')
         .single();
 
