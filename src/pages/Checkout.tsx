@@ -349,25 +349,36 @@ const Checkout = () => {
       const { data: nextOrderNum } = await supabase.rpc('get_next_order_number', { p_version_id: versionId });
       const orderNumber = nextOrderNum || 1;
 
+      // Check if staff member is logged in
+      const staffSession = sessionStorage.getItem('babyland_staff');
+      const staffData = staffSession ? JSON.parse(staffSession) : null;
+
       // Create order
+      const orderInsert: Record<string, unknown> = {
+        customer_id: customerId,
+        customer_name: formData.name,
+        shop_name: formData.shopName || null,
+        phone: formData.phone,
+        address: formData.address || null,
+        delivery_date: formData.deliveryDate || null,
+        shipping_company: formData.shippingCompany || null,
+        deposit_method: formData.depositMethod || null,
+        deposit_amount: formData.depositAmount,
+        subtotal: subtotal,
+        total: total,
+        extra_info: extraInfo || null,
+        version_id: versionId,
+        order_number: orderNumber,
+      };
+
+      if (staffData) {
+        orderInsert.staff_member_id = staffData.id;
+        orderInsert.staff_member_name = staffData.name;
+      }
+
       const { data: order, error: orderError } = await supabase
         .from('orders')
-        .insert({
-          customer_id: customerId,
-          customer_name: formData.name,
-          shop_name: formData.shopName || null,
-          phone: formData.phone,
-          address: formData.address || null,
-          delivery_date: formData.deliveryDate || null,
-          shipping_company: formData.shippingCompany || null,
-          deposit_method: formData.depositMethod || null,
-          deposit_amount: formData.depositAmount,
-          subtotal: subtotal,
-          total: total,
-          extra_info: extraInfo || null,
-          version_id: versionId,
-          order_number: orderNumber,
-        })
+        .insert(orderInsert)
         .select('id, order_number')
         .single();
 
