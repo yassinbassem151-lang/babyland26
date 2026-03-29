@@ -37,6 +37,7 @@ const Stats = () => {
     lowStockProducts: 0,
   });
   const [stockAlerts, setStockAlerts] = useState<StockAlert[]>([]);
+  const [lowStockItems, setLowStockItems] = useState<any[]>([]);
 
   useEffect(() => {
     if (activeVersion) {
@@ -47,11 +48,12 @@ const Stats = () => {
   const loadStats = async () => {
     if (!activeVersion) return;
 
-    const [products, orders, customers, alerts] = await Promise.all([
+    const [products, orders, customers, alerts, lowStock] = await Promise.all([
       supabase.from('products').select('id', { count: 'exact' }).eq('version_id', activeVersion.id),
       supabase.from('orders').select('total').eq('version_id', activeVersion.id),
       supabase.from('customers').select('id', { count: 'exact' }).eq('version_id', activeVersion.id),
       supabase.from('stock_alerts').select('*').eq('version_id', activeVersion.id).order('created_at', { ascending: false }),
+      supabase.from('products').select('*').eq('version_id', activeVersion.id).filter('stock_quantity', 'lte', 10),
     ]);
 
     const totalRevenue = orders.data?.reduce((sum, o) => sum + (o.total || 0), 0) || 0;
@@ -61,10 +63,11 @@ const Stats = () => {
       totalOrders: orders.data?.length || 0,
       totalCustomers: customers.count || 0,
       totalRevenue,
-      lowStockProducts: alerts.data?.filter(a => !a.acknowledged).length || 0,
+      lowStockProducts: lowStock.data?.length || 0,
     });
 
     if (alerts.data) setStockAlerts(alerts.data as StockAlert[]);
+    if (lowStock.data) setLowStockItems(lowStock.data);
   };
 
   const handleAcknowledge = async (alertId: string) => {
@@ -120,14 +123,44 @@ const Stats = () => {
         })}
       </div>
 
-      {/* Stock Alerts */}
-      {stockAlerts.length > 0 && (
+      {/* Low Stock Products */}
+      {lowStockItems.length > 0 && (
         <Card className="border-2 border-destructive/30 bg-destructive/5">
           <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              تنبيه المخزون المنخفض ({lowStockItems.length} منتج)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {lowStockItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between p-3 rounded-lg bg-background"
+                >
+                  <div>
+                    <p className="font-medium">{item.name}</p>
+                    <p className="text-sm text-muted-foreground">#{item.code}</p>
+                  </div>
+                  <span className={`font-bold ${item.stock_quantity === 0 ? 'text-destructive' : 'text-amber-500'}`}>
+                    {item.stock_quantity} متبقي
+                  </span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Stock Alerts from alerts table */}
+      {stockAlerts.length > 0 && (
+        <Card className="border-2 border-primary/30">
+          <CardHeader>
             <CardTitle className="flex items-center justify-between">
-              <span className="flex items-center gap-2 text-destructive">
+              <span className="flex items-center gap-2 text-primary">
                 <AlertTriangle className="h-5 w-5" />
-                تنبيه المخزون المنخفض ({stockAlerts.length} منتج)
+                تنبيهات المخزون ({stockAlerts.length})
               </span>
               {newAlerts.length > 0 && (
                 <Badge variant="destructive">{newAlerts.length} جديد</Badge>
