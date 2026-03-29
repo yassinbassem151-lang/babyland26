@@ -409,6 +409,20 @@ const Checkout = () => {
         p => p.stock_quantity <= p.low_stock_threshold
       ) || [];
 
+      // Save stock alerts to database
+      if (lowStockProducts.length > 0) {
+        const alertInserts = lowStockProducts.map(p => ({
+          product_id: p.id,
+          product_code: p.code,
+          product_name: p.name,
+          remaining_quantity: p.stock_quantity,
+          version_id: versionId,
+        }));
+        await supabase.from('stock_alerts').insert(alertInserts as any).catch(err => 
+          console.error('Failed to save stock alerts:', err)
+        );
+      }
+
       // Send Telegram notification (fire and forget)
       supabase.functions.invoke('send-telegram-notification', {
         body: {
@@ -417,6 +431,7 @@ const Checkout = () => {
           shopName: formData.shopName,
           phone: formData.phone,
           address: formData.address,
+          staffName: staffData?.name || null,
           items: items.map(item => ({
             name: item.name,
             code: item.code,

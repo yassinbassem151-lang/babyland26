@@ -19,10 +19,13 @@ Deno.serve(async (req) => {
       throw new Error('TELEGRAM_CHAT_ID is not configured');
     }
 
-    const { orderNumber, customerName, shopName, phone, address, items, subtotal, total, depositAmount, depositMethod, extraInfo, lowStockProducts } = await req.json();
+    const { orderNumber, customerName, shopName, phone, address, items, subtotal, total, depositAmount, depositMethod, extraInfo, lowStockProducts, staffName } = await req.json();
 
     // Build message
     let message = `🧸 *طلب جديد \\#${orderNumber}*\n\n`;
+    if (staffName) {
+      message += `👷 *بواسطة موظف:* ${escapeMarkdown(staffName)}\n`;
+    }
     message += `👤 *العميل:* ${escapeMarkdown(customerName)}\n`;
     if (shopName) message += `🏪 *المحل:* ${escapeMarkdown(shopName)}\n`;
     message += `📞 *الهاتف:* ${escapeMarkdown(phone)}\n`;
