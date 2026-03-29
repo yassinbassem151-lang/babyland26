@@ -38,6 +38,7 @@ const Stats = () => {
   });
   const [stockAlerts, setStockAlerts] = useState<StockAlert[]>([]);
   const [lowStockItems, setLowStockItems] = useState<any[]>([]);
+  const [acknowledgedProductIds, setAcknowledgedProductIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (activeVersion) {
