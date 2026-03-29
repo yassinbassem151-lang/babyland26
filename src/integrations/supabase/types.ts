@@ -217,6 +217,8 @@ export type Database = {
           phone: string
           shipping_company: string | null
           shop_name: string | null
+          staff_member_id: string | null
+          staff_member_name: string | null
           status: string
           subtotal: number
           total: number
@@ -237,6 +239,8 @@ export type Database = {
           phone: string
           shipping_company?: string | null
           shop_name?: string | null
+          staff_member_id?: string | null
+          staff_member_name?: string | null
           status?: string
           subtotal?: number
           total?: number
@@ -257,6 +261,8 @@ export type Database = {
           phone?: string
           shipping_company?: string | null
           shop_name?: string | null
+          staff_member_id?: string | null
+          staff_member_name?: string | null
           status?: string
           subtotal?: number
           total?: number
@@ -329,6 +335,66 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      staff_members: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          password: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          password: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          password?: string
+        }
+        Relationships: []
+      }
+      stock_alerts: {
+        Row: {
+          acknowledged: boolean
+          acknowledged_at: string | null
+          created_at: string
+          id: string
+          product_code: string
+          product_id: string
+          product_name: string
+          remaining_quantity: number
+          version_id: string
+        }
+        Insert: {
+          acknowledged?: boolean
+          acknowledged_at?: string | null
+          created_at?: string
+          id?: string
+          product_code: string
+          product_id: string
+          product_name: string
+          remaining_quantity?: number
+          version_id: string
+        }
+        Update: {
+          acknowledged?: boolean
+          acknowledged_at?: string | null
+          created_at?: string
+          id?: string
+          product_code?: string
+          product_id?: string
+          product_name?: string
+          remaining_quantity?: number
+          version_id?: string
+        }
+        Relationships: []
       }
       versions: {
         Row: {
