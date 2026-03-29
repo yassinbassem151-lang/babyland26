@@ -418,9 +418,11 @@ const Checkout = () => {
           remaining_quantity: p.stock_quantity,
           version_id: versionId,
         }));
-        await supabase.from('stock_alerts').insert(alertInserts as any).catch(err => 
-          console.error('Failed to save stock alerts:', err)
-        );
+        try {
+          await supabase.from('stock_alerts').insert(alertInserts as any);
+        } catch (err) {
+          console.error('Failed to save stock alerts:', err);
+        }
       }
 
       // Send Telegram notification (fire and forget)
