@@ -38,6 +38,7 @@ const Stats = () => {
   });
   const [stockAlerts, setStockAlerts] = useState<StockAlert[]>([]);
   const [lowStockItems, setLowStockItems] = useState<any[]>([]);
+  const [acknowledgedProductIds, setAcknowledgedProductIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (activeVersion) {
@@ -66,8 +67,35 @@ const Stats = () => {
       lowStockProducts: lowStock.data?.length || 0,
     });
 
-    if (alerts.data) setStockAlerts(alerts.data as StockAlert[]);
+    if (alerts.data) {
+      setStockAlerts(alerts.data as StockAlert[]);
+      const ackIds = new Set(
+        (alerts.data as StockAlert[]).filter(a => a.acknowledged).map(a => a.product_id)
+      );
+      setAcknowledgedProductIds(ackIds);
+    }
     if (lowStock.data) setLowStockItems(lowStock.data);
+  };
+
+  const handleAcknowledgeProduct = async (item: any) => {
+    if (!activeVersion) return;
+    // Create a stock alert record marked as acknowledged
+    const { error } = await supabase.from('stock_alerts').insert({
+      product_id: item.id,
+      product_code: item.code,
+      product_name: item.name,
+      remaining_quantity: item.stock_quantity,
+      acknowledged: true,
+      acknowledged_at: new Date().toISOString(),
+      version_id: activeVersion.id,
+    });
+
+    if (error) {
+      toast.error('فشل في تحديث التنبيه');
+    } else {
+      toast.success('تم تأكيد التنبيه');
+      setAcknowledgedProductIds(prev => new Set([...prev, item.id]));
+    }
   };
 
   const handleAcknowledge = async (alertId: string) => {
@@ -134,20 +162,44 @@ const Stats = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {lowStockItems.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between p-3 rounded-lg bg-background"
-                >
-                  <div>
-                    <p className="font-medium">{item.name}</p>
-                    <p className="text-sm text-muted-foreground">#{item.code}</p>
+              {lowStockItems.map((item) => {
+                const isAcknowledged = acknowledgedProductIds.has(item.id);
+                return (
+                  <div
+                    key={item.id}
+                    className={`flex items-center justify-between p-3 rounded-lg ${
+                      isAcknowledged
+                        ? 'bg-green-50 border border-green-300 opacity-70'
+                        : 'bg-destructive/10 border border-destructive/30'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-lg">{isAcknowledged ? '✅' : item.stock_quantity <= 0 ? '🔴' : '🟡'}</span>
+                      <div>
+                        <p className="font-medium">{item.name}</p>
+                        <p className="text-sm text-muted-foreground">#{item.code}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`font-bold ${item.stock_quantity === 0 ? 'text-destructive' : 'text-amber-500'}`}>
+                        {item.stock_quantity} متبقي
+                      </span>
+                      {isAcknowledged ? (
+                        <Badge className="bg-green-100 text-green-800">تم التأكيد</Badge>
+                      ) : (
+                        <Button
+                          size="sm"
+                          onClick={() => handleAcknowledgeProduct(item)}
+                          className="bg-green-600 hover:bg-green-700 text-white gap-1"
+                        >
+                          <Check className="h-4 w-4" />
+                          تم
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                  <span className={`font-bold ${item.stock_quantity === 0 ? 'text-destructive' : 'text-amber-500'}`}>
-                    {item.stock_quantity} متبقي
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>
