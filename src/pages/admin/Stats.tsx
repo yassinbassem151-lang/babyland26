@@ -77,6 +77,27 @@ const Stats = () => {
     if (lowStock.data) setLowStockItems(lowStock.data);
   };
 
+  const handleAcknowledgeProduct = async (item: any) => {
+    if (!activeVersion) return;
+    // Create a stock alert record marked as acknowledged
+    const { error } = await supabase.from('stock_alerts').insert({
+      product_id: item.id,
+      product_code: item.code,
+      product_name: item.name,
+      remaining_quantity: item.stock_quantity,
+      acknowledged: true,
+      acknowledged_at: new Date().toISOString(),
+      version_id: activeVersion.id,
+    });
+
+    if (error) {
+      toast.error('فشل في تحديث التنبيه');
+    } else {
+      toast.success('تم تأكيد التنبيه');
+      setAcknowledgedProductIds(prev => new Set([...prev, item.id]));
+    }
+  };
+
   const handleAcknowledge = async (alertId: string) => {
     const { error } = await supabase
       .from('stock_alerts')
