@@ -197,7 +197,7 @@ const ProductReport = () => {
         XLSX.utils.book_append_sheet(wb, ws, sheetName || `product_${product.id.slice(0, 8)}`);
       }
 
-      XLSX.writeFile(wb, `تقرير_المنتجات_${new Date().toLocaleDateString('ar-EG')}.xlsx`);
+      XLSX.writeFile(wb, `تقرير_المنتجات_${new Date().toLocaleDateString('ar-EG')}.xlsx`, { cellStyles: true });
       toast({ title: 'تم إنشاء التقرير بنجاح ✅' });
     } catch (error) {
       console.error(error);
