@@ -193,7 +193,7 @@ const ProductReport = () => {
       }
 
       const ws = XLSX.utils.aoa_to_sheet(sheetData);
-      ws['!cols'] = [{ wch: 20 }, { wch: 18 }, { wch: 18 }, { wch: 18 }];
+      ws['!cols'] = [{ wch: 20 }, { wch: 25 }, { wch: 18 }, { wch: 18 }, { wch: 18 }];
       ws['!margins'] = { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.3, footer: 0.3 };
       const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
       applyStyles(ws, range, [0]);
