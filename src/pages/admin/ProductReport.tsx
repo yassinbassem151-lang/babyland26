@@ -184,7 +184,7 @@ const ProductReport = () => {
       const selectedProducts = products.filter(p => selectedCodes.has(p.id));
       const wb = XLSX.utils.book_new();
       const sheetData: (string | number)[][] = [
-        ['الكود', 'الكمية الأولية', 'الكمية المباعة', 'الكمية المتبقية'],
+        ['الكود', 'الاسم', 'الكمية الأولية', 'الكمية المباعة', 'الكمية المتبقية'],
       ];
 
       for (const product of selectedProducts) {
