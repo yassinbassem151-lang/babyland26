@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FileSpreadsheet, Search, CheckSquare, Square } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import XLSX from 'xlsx-js-style';
+import * as XLSX from 'xlsx';
 
 interface Product {
   id: string;
