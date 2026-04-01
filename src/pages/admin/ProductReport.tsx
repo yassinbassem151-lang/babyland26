@@ -158,6 +158,39 @@ const ProductReport = () => {
 
         const ws = XLSX.utils.aoa_to_sheet(sheetData);
         ws['!cols'] = [{ wch: 25 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }];
+        ws['!margins'] = { left: 0.4, right: 0.4, top: 0.6, bottom: 0.6, header: 0.3, footer: 0.3 };
+
+        // Apply borders and styling to all cells for print
+        const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+        for (let R = range.s.r; R <= range.e.r; R++) {
+          for (let C = range.s.c; C <= range.e.c; C++) {
+            const addr = XLSX.utils.encode_cell({ r: R, c: C });
+            if (!ws[addr]) ws[addr] = { v: '', t: 's' };
+            const cell = ws[addr];
+            const border = { style: 'thin', color: { rgb: '000000' } };
+            cell.s = {
+              border: { top: border, bottom: border, left: border, right: border },
+              alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+              font: { name: 'Arial', sz: 11 },
+            };
+            // Header rows styling
+            if (R === 0 || R === 8) {
+              cell.s.font = { name: 'Arial', sz: 13, bold: true };
+              cell.s.fill = { fgColor: { rgb: '4472C4' } };
+              cell.s.font.color = { rgb: 'FFFFFF' };
+            }
+            // Table header row
+            if (R === 9) {
+              cell.s.font = { name: 'Arial', sz: 11, bold: true };
+              cell.s.fill = { fgColor: { rgb: 'D9E2F3' } };
+            }
+            // Info label cells
+            if (R >= 1 && R <= 6 && C === 0) {
+              cell.s.font = { name: 'Arial', sz: 11, bold: true };
+              cell.s.fill = { fgColor: { rgb: 'F2F2F2' } };
+            }
+          }
+        }
 
         // Sanitize sheet name (max 31 chars, no special chars)
         const sheetName = product.code.replace(/[\\\/\?\*\[\]:]/g, '').slice(0, 31);
