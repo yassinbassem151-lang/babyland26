@@ -115,24 +115,8 @@ const ProductReport = () => {
     return { orderDetails, totalPiecesSold, initialQuantity };
   };
 
-  const applyStyles = (ws: any, range: any, headerRows: number[]) => {
-    for (let R = range.s.r; R <= range.e.r; R++) {
-      for (let C = range.s.c; C <= range.e.c; C++) {
-        const addr = XLSX.utils.encode_cell({ r: R, c: C });
-        if (!ws[addr]) ws[addr] = { v: '', t: 's' };
-        const cell = ws[addr];
-        const border = { style: 'thin', color: { rgb: '000000' } };
-        cell.s = {
-          border: { top: border, bottom: border, left: border, right: border },
-          alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
-          font: { name: 'Arial', sz: 11 },
-        };
-        if (headerRows.includes(R)) {
-          cell.s.font = { name: 'Arial', sz: 12, bold: true, color: { rgb: 'FFFFFF' } };
-          cell.s.fill = { fgColor: { rgb: '4472C4' } };
-        }
-      }
-    }
+  const applyStyles = (_ws: any, _range: any, _headerRows: number[]) => {
+    // Styling requires xlsx-js-style; skipped with plain xlsx
   };
 
   const generateDetailedReport = async () => {
