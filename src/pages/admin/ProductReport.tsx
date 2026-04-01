@@ -199,7 +199,7 @@ const ProductReport = () => {
       applyStyles(ws, range, [0]);
 
       XLSX.utils.book_append_sheet(wb, ws, 'ملخص المخزون');
-      XLSX.writeFile(wb, `ملخص_المخزون_${new Date().toLocaleDateString('ar-EG')}.xlsx`, { cellStyles: true });
+      XLSX.writeFile(wb, `ملخص_المخزون_${new Date().toLocaleDateString('ar-EG')}.xlsx`);
       toast({ title: 'تم إنشاء ملخص المخزون ✅' });
     } catch (error) {
       console.error(error);
