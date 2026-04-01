@@ -18,6 +18,7 @@ import CustomerExtraInfo from "./pages/admin/CustomerExtraInfo";
 import ProductImages from "./pages/admin/ProductImages";
 import StockAlerts from "./pages/admin/StockAlerts";
 import StaffManagement from "./pages/admin/StaffManagement";
+import ProductReport from "./pages/admin/ProductReport";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
