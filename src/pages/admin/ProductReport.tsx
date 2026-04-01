@@ -189,7 +189,7 @@ const ProductReport = () => {
 
       for (const product of selectedProducts) {
         const { totalPiecesSold, initialQuantity } = await fetchProductData(product);
-        sheetData.push([product.code, initialQuantity, totalPiecesSold, product.stock_quantity]);
+        sheetData.push([product.code, product.name, initialQuantity, totalPiecesSold, product.stock_quantity]);
       }
 
       const ws = XLSX.utils.aoa_to_sheet(sheetData);
