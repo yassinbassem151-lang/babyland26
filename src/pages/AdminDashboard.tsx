@@ -16,6 +16,7 @@ const navItems = [
   { path: '/admin/dashboard/customer-extra-info', label: 'معلومات إضافية', icon: FileText },
   { path: '/admin/dashboard/product-images', label: 'صور المنتجات', icon: ImagePlus },
   { path: '/admin/dashboard/stock-alerts', label: 'تنبيهات المخزون', icon: Bell },
+  { path: '/admin/dashboard/product-report', label: 'تقرير المنتجات', icon: ClipboardList },
   { path: '/admin/dashboard/staff', label: 'الموظفين', icon: UserCog },
 ];
 
