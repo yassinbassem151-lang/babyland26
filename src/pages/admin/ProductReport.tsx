@@ -26,7 +26,8 @@ interface OrderDetail {
 }
 
 const ProductReport = () => {
-  const { currentVersion } = useVersion();
+  const { activeVersion } = useVersion();
+  const currentVersion = activeVersion?.id;
   const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedCodes, setSelectedCodes] = useState<Set<string>>(new Set());
