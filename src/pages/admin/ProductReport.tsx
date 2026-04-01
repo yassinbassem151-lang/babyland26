@@ -228,12 +228,18 @@ const ProductReport = () => {
 
   return (
     <div className="space-y-6" dir="rtl">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <h1 className="text-2xl font-bold">تقرير المنتجات</h1>
-        <Button onClick={generateReport} disabled={generating || selectedCodes.size === 0}>
-          <FileSpreadsheet className="h-4 w-4 ml-2" />
-          {generating ? 'جاري الإنشاء...' : `إنشاء التقرير (${selectedCodes.size})`}
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={generateDetailedReport} disabled={generating || selectedCodes.size === 0}>
+            <FileSpreadsheet className="h-4 w-4 ml-2" />
+            {generating ? 'جاري...' : `تقرير مفصل (${selectedCodes.size})`}
+          </Button>
+          <Button onClick={generateSummaryReport} disabled={generating || selectedCodes.size === 0} variant="outline">
+            <FileSpreadsheet className="h-4 w-4 ml-2" />
+            {generating ? 'جاري...' : `ملخص المخزون (${selectedCodes.size})`}
+          </Button>
+        </div>
       </div>
 
       <Card>
