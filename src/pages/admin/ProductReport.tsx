@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FileSpreadsheet, Search, CheckSquare, Square } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import XLSX from 'xlsx-js-style';
+import * as XLSX from 'xlsx';
 
 interface Product {
   id: string;
@@ -115,24 +115,8 @@ const ProductReport = () => {
     return { orderDetails, totalPiecesSold, initialQuantity };
   };
 
-  const applyStyles = (ws: any, range: any, headerRows: number[]) => {
-    for (let R = range.s.r; R <= range.e.r; R++) {
-      for (let C = range.s.c; C <= range.e.c; C++) {
-        const addr = XLSX.utils.encode_cell({ r: R, c: C });
-        if (!ws[addr]) ws[addr] = { v: '', t: 's' };
-        const cell = ws[addr];
-        const border = { style: 'thin', color: { rgb: '000000' } };
-        cell.s = {
-          border: { top: border, bottom: border, left: border, right: border },
-          alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
-          font: { name: 'Arial', sz: 11 },
-        };
-        if (headerRows.includes(R)) {
-          cell.s.font = { name: 'Arial', sz: 12, bold: true, color: { rgb: 'FFFFFF' } };
-          cell.s.fill = { fgColor: { rgb: '4472C4' } };
-        }
-      }
-    }
+  const applyStyles = (_ws: any, _range: any, _headerRows: number[]) => {
+    // Styling requires xlsx-js-style; skipped with plain xlsx
   };
 
   const generateDetailedReport = async () => {
@@ -181,7 +165,7 @@ const ProductReport = () => {
       applyStyles(ws, range, headerRows);
 
       XLSX.utils.book_append_sheet(wb, ws, 'تقرير مفصل');
-      XLSX.writeFile(wb, `تقرير_مفصل_${new Date().toLocaleDateString('ar-EG')}.xlsx`, { cellStyles: true });
+      XLSX.writeFile(wb, `تقرير_مفصل_${new Date().toLocaleDateString('ar-EG')}.xlsx`);
       toast({ title: 'تم إنشاء التقرير المفصل ✅' });
     } catch (error) {
       console.error(error);
@@ -200,22 +184,22 @@ const ProductReport = () => {
       const selectedProducts = products.filter(p => selectedCodes.has(p.id));
       const wb = XLSX.utils.book_new();
       const sheetData: (string | number)[][] = [
-        ['الكود', 'الكمية الأولية', 'الكمية المباعة', 'الكمية المتبقية'],
+        ['الكود', 'الاسم', 'الكمية الأولية', 'الكمية المباعة', 'الكمية المتبقية'],
       ];
 
       for (const product of selectedProducts) {
         const { totalPiecesSold, initialQuantity } = await fetchProductData(product);
-        sheetData.push([product.code, initialQuantity, totalPiecesSold, product.stock_quantity]);
+        sheetData.push([product.code, product.name, initialQuantity, totalPiecesSold, product.stock_quantity]);
       }
 
       const ws = XLSX.utils.aoa_to_sheet(sheetData);
-      ws['!cols'] = [{ wch: 20 }, { wch: 18 }, { wch: 18 }, { wch: 18 }];
+      ws['!cols'] = [{ wch: 20 }, { wch: 25 }, { wch: 18 }, { wch: 18 }, { wch: 18 }];
       ws['!margins'] = { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.3, footer: 0.3 };
       const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
       applyStyles(ws, range, [0]);
 
       XLSX.utils.book_append_sheet(wb, ws, 'ملخص المخزون');
-      XLSX.writeFile(wb, `ملخص_المخزون_${new Date().toLocaleDateString('ar-EG')}.xlsx`, { cellStyles: true });
+      XLSX.writeFile(wb, `ملخص_المخزون_${new Date().toLocaleDateString('ar-EG')}.xlsx`);
       toast({ title: 'تم إنشاء ملخص المخزون ✅' });
     } catch (error) {
       console.error(error);
