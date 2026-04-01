@@ -165,7 +165,7 @@ const ProductReport = () => {
       applyStyles(ws, range, headerRows);
 
       XLSX.utils.book_append_sheet(wb, ws, 'تقرير مفصل');
-      XLSX.writeFile(wb, `تقرير_مفصل_${new Date().toLocaleDateString('ar-EG')}.xlsx`, { cellStyles: true });
+      XLSX.writeFile(wb, `تقرير_مفصل_${new Date().toLocaleDateString('ar-EG')}.xlsx`);
       toast({ title: 'تم إنشاء التقرير المفصل ✅' });
     } catch (error) {
       console.error(error);
