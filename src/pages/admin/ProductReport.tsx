@@ -75,130 +75,148 @@ const ProductReport = () => {
     return match ? parseInt(match[1]) : 1;
   };
 
-  const generateReport = async () => {
+  const fetchProductData = async (product: Product) => {
+    const multiplier = getMultiplier(product.description);
+    const { data: orderItems } = await supabase
+      .from('order_items')
+      .select('quantity, product_description, order_id, created_at')
+      .eq('product_id', product.id)
+      .eq('version_id', currentVersion);
+
+    const orderDetails: OrderDetail[] = [];
+    let totalPiecesSold = 0;
+
+    if (orderItems && orderItems.length > 0) {
+      const orderIds = [...new Set(orderItems.map(oi => oi.order_id))];
+      const { data: orders } = await supabase
+        .from('orders')
+        .select('id, customer_name, order_number, created_at')
+        .in('id', orderIds);
+      const ordersMap = new Map((orders || []).map(o => [o.id, o]));
+
+      for (const item of orderItems) {
+        const itemMultiplier = getMultiplier(item.product_description);
+        const pieces = item.quantity * itemMultiplier;
+        totalPiecesSold += pieces;
+        const order = ordersMap.get(item.order_id);
+        if (order) {
+          orderDetails.push({
+            customer_name: order.customer_name,
+            order_number: order.order_number,
+            quantity: item.quantity,
+            pieces,
+            created_at: new Date(order.created_at).toLocaleDateString('ar-EG'),
+          });
+        }
+      }
+    }
+
+    const initialQuantity = product.stock_quantity + totalPiecesSold;
+    return { orderDetails, totalPiecesSold, initialQuantity };
+  };
+
+  const applyStyles = (ws: any, range: any, headerRows: number[]) => {
+    for (let R = range.s.r; R <= range.e.r; R++) {
+      for (let C = range.s.c; C <= range.e.c; C++) {
+        const addr = XLSX.utils.encode_cell({ r: R, c: C });
+        if (!ws[addr]) ws[addr] = { v: '', t: 's' };
+        const cell = ws[addr];
+        const border = { style: 'thin', color: { rgb: '000000' } };
+        cell.s = {
+          border: { top: border, bottom: border, left: border, right: border },
+          alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+          font: { name: 'Arial', sz: 11 },
+        };
+        if (headerRows.includes(R)) {
+          cell.s.font = { name: 'Arial', sz: 12, bold: true, color: { rgb: 'FFFFFF' } };
+          cell.s.fill = { fgColor: { rgb: '4472C4' } };
+        }
+      }
+    }
+  };
+
+  const generateDetailedReport = async () => {
     if (selectedCodes.size === 0) {
       toast({ title: 'اختر منتج واحد على الأقل', variant: 'destructive' });
       return;
     }
-
     setGenerating(true);
     try {
       const selectedProducts = products.filter(p => selectedCodes.has(p.id));
       const wb = XLSX.utils.book_new();
+      const sheetData: (string | number)[][] = [
+        ['الكود', 'الاسم', 'الكمية الأولية', 'إجمالي المباع', 'الكمية الحالية', 'اسم العميل', 'رقم الطلب', 'الكمية', 'القطع', 'التاريخ'],
+      ];
+      const headerRows = [0];
 
       for (const product of selectedProducts) {
-        const multiplier = getMultiplier(product.description);
-
-        // Get all order items for this product
-        const { data: orderItems } = await supabase
-          .from('order_items')
-          .select('quantity, product_description, order_id, created_at')
-          .eq('product_id', product.id)
-          .eq('version_id', currentVersion);
-
-        // Get order details
-        const orderDetails: OrderDetail[] = [];
-        let totalPiecesSold = 0;
-
-        if (orderItems && orderItems.length > 0) {
-          const orderIds = [...new Set(orderItems.map(oi => oi.order_id))];
-          const { data: orders } = await supabase
-            .from('orders')
-            .select('id, customer_name, order_number, created_at')
-            .in('id', orderIds);
-
-          const ordersMap = new Map((orders || []).map(o => [o.id, o]));
-
-          for (const item of orderItems) {
-            const itemMultiplier = getMultiplier(item.product_description);
-            const pieces = item.quantity * itemMultiplier;
-            totalPiecesSold += pieces;
-            const order = ordersMap.get(item.order_id);
-            if (order) {
-              orderDetails.push({
-                customer_name: order.customer_name,
-                order_number: order.order_number,
-                quantity: item.quantity,
-                pieces,
-                created_at: new Date(order.created_at).toLocaleDateString('ar-EG'),
-              });
-            }
-          }
-        }
-
-        const initialQuantity = product.stock_quantity + totalPiecesSold;
-
-        // Build sheet data
-        const sheetData: (string | number)[][] = [
-          ['معلومات المنتج', '', '', '', ''],
-          ['الكود', product.code, '', '', ''],
-          ['الاسم', product.name, '', '', ''],
-          ['الوصف', product.description || '-', '', '', ''],
-          ['الكمية الأولية', initialQuantity, '', '', ''],
-          ['إجمالي المباع (قطع)', totalPiecesSold, '', '', ''],
-          ['الكمية الحالية', product.stock_quantity, '', '', ''],
-          [],
-          ['تفاصيل الطلبات', '', '', '', ''],
-          ['اسم العميل', 'رقم الطلب', 'الكمية', 'القطع', 'التاريخ'],
-        ];
-
-        for (const detail of orderDetails) {
-          sheetData.push([
-            detail.customer_name,
-            detail.order_number,
-            detail.quantity,
-            detail.pieces,
-            detail.created_at,
-          ]);
-        }
+        const { orderDetails, totalPiecesSold, initialQuantity } = await fetchProductData(product);
 
         if (orderDetails.length === 0) {
-          sheetData.push(['لا توجد طلبات', '', '', '', '']);
+          sheetData.push([product.code, product.name, initialQuantity, totalPiecesSold, product.stock_quantity, 'لا توجد طلبات', '', '', '', '']);
+        } else {
+          orderDetails.forEach((detail, i) => {
+            sheetData.push([
+              i === 0 ? product.code : '',
+              i === 0 ? product.name : '',
+              i === 0 ? initialQuantity : '',
+              i === 0 ? totalPiecesSold : '',
+              i === 0 ? product.stock_quantity : '',
+              detail.customer_name,
+              detail.order_number,
+              detail.quantity,
+              detail.pieces,
+              detail.created_at,
+            ]);
+          });
         }
-
-        const ws = XLSX.utils.aoa_to_sheet(sheetData);
-        ws['!cols'] = [{ wch: 25 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }];
-        ws['!margins'] = { left: 0.4, right: 0.4, top: 0.6, bottom: 0.6, header: 0.3, footer: 0.3 };
-
-        // Apply borders and styling to all cells for print
-        const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
-        for (let R = range.s.r; R <= range.e.r; R++) {
-          for (let C = range.s.c; C <= range.e.c; C++) {
-            const addr = XLSX.utils.encode_cell({ r: R, c: C });
-            if (!ws[addr]) ws[addr] = { v: '', t: 's' };
-            const cell = ws[addr];
-            const border = { style: 'thin', color: { rgb: '000000' } };
-            cell.s = {
-              border: { top: border, bottom: border, left: border, right: border },
-              alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
-              font: { name: 'Arial', sz: 11 },
-            };
-            // Header rows styling
-            if (R === 0 || R === 8) {
-              cell.s.font = { name: 'Arial', sz: 13, bold: true };
-              cell.s.fill = { fgColor: { rgb: '4472C4' } };
-              cell.s.font.color = { rgb: 'FFFFFF' };
-            }
-            // Table header row
-            if (R === 9) {
-              cell.s.font = { name: 'Arial', sz: 11, bold: true };
-              cell.s.fill = { fgColor: { rgb: 'D9E2F3' } };
-            }
-            // Info label cells
-            if (R >= 1 && R <= 6 && C === 0) {
-              cell.s.font = { name: 'Arial', sz: 11, bold: true };
-              cell.s.fill = { fgColor: { rgb: 'F2F2F2' } };
-            }
-          }
-        }
-
-        // Sanitize sheet name (max 31 chars, no special chars)
-        const sheetName = product.code.replace(/[\\\/\?\*\[\]:]/g, '').slice(0, 31);
-        XLSX.utils.book_append_sheet(wb, ws, sheetName || `product_${product.id.slice(0, 8)}`);
+        // separator row
+        sheetData.push(['', '', '', '', '', '', '', '', '', '']);
       }
 
-      XLSX.writeFile(wb, `تقرير_المنتجات_${new Date().toLocaleDateString('ar-EG')}.xlsx`, { cellStyles: true });
-      toast({ title: 'تم إنشاء التقرير بنجاح ✅' });
+      const ws = XLSX.utils.aoa_to_sheet(sheetData);
+      ws['!cols'] = [{ wch: 15 }, { wch: 20 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 20 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 14 }];
+      ws['!margins'] = { left: 0.3, right: 0.3, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 };
+      const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+      applyStyles(ws, range, headerRows);
+
+      XLSX.utils.book_append_sheet(wb, ws, 'تقرير مفصل');
+      XLSX.writeFile(wb, `تقرير_مفصل_${new Date().toLocaleDateString('ar-EG')}.xlsx`, { cellStyles: true });
+      toast({ title: 'تم إنشاء التقرير المفصل ✅' });
+    } catch (error) {
+      console.error(error);
+      toast({ title: 'حدث خطأ أثناء إنشاء التقرير', variant: 'destructive' });
+    }
+    setGenerating(false);
+  };
+
+  const generateSummaryReport = async () => {
+    if (selectedCodes.size === 0) {
+      toast({ title: 'اختر منتج واحد على الأقل', variant: 'destructive' });
+      return;
+    }
+    setGenerating(true);
+    try {
+      const selectedProducts = products.filter(p => selectedCodes.has(p.id));
+      const wb = XLSX.utils.book_new();
+      const sheetData: (string | number)[][] = [
+        ['الكود', 'الكمية الأولية', 'الكمية المباعة', 'الكمية المتبقية'],
+      ];
+
+      for (const product of selectedProducts) {
+        const { totalPiecesSold, initialQuantity } = await fetchProductData(product);
+        sheetData.push([product.code, initialQuantity, totalPiecesSold, product.stock_quantity]);
+      }
+
+      const ws = XLSX.utils.aoa_to_sheet(sheetData);
+      ws['!cols'] = [{ wch: 20 }, { wch: 18 }, { wch: 18 }, { wch: 18 }];
+      ws['!margins'] = { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.3, footer: 0.3 };
+      const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+      applyStyles(ws, range, [0]);
+
+      XLSX.utils.book_append_sheet(wb, ws, 'ملخص المخزون');
+      XLSX.writeFile(wb, `ملخص_المخزون_${new Date().toLocaleDateString('ar-EG')}.xlsx`, { cellStyles: true });
+      toast({ title: 'تم إنشاء ملخص المخزون ✅' });
     } catch (error) {
       console.error(error);
       toast({ title: 'حدث خطأ أثناء إنشاء التقرير', variant: 'destructive' });
@@ -210,12 +228,18 @@ const ProductReport = () => {
 
   return (
     <div className="space-y-6" dir="rtl">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <h1 className="text-2xl font-bold">تقرير المنتجات</h1>
-        <Button onClick={generateReport} disabled={generating || selectedCodes.size === 0}>
-          <FileSpreadsheet className="h-4 w-4 ml-2" />
-          {generating ? 'جاري الإنشاء...' : `إنشاء التقرير (${selectedCodes.size})`}
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={generateDetailedReport} disabled={generating || selectedCodes.size === 0}>
+            <FileSpreadsheet className="h-4 w-4 ml-2" />
+            {generating ? 'جاري...' : `تقرير مفصل (${selectedCodes.size})`}
+          </Button>
+          <Button onClick={generateSummaryReport} disabled={generating || selectedCodes.size === 0} variant="outline">
+            <FileSpreadsheet className="h-4 w-4 ml-2" />
+            {generating ? 'جاري...' : `ملخص المخزون (${selectedCodes.size})`}
+          </Button>
+        </div>
       </div>
 
       <Card>
