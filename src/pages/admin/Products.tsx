@@ -220,6 +220,39 @@ const Products = () => {
     }
   };
 
+  const printRangeLabels = async () => {
+    const start = parseInt(rangeStart);
+    const end = parseInt(rangeEnd);
+    if (isNaN(start) || isNaN(end) || start > end) {
+      toast.error('أدخل نطاق صحيح');
+      return;
+    }
+    try {
+      const rangeProducts = products
+        .filter(p => {
+          const num = parseInt(p.code.replace(/\D/g, ''));
+          return !isNaN(num) && num >= start && num <= end;
+        })
+        .sort((a, b) => parseInt(a.code.replace(/\D/g, '')) - parseInt(b.code.replace(/\D/g, '')));
+
+      if (rangeProducts.length === 0) {
+        toast.error('لا توجد منتجات في هذا النطاق');
+        return;
+      }
+
+      const labelData = await Promise.all(
+        rangeProducts.map(async (product) => {
+          const qrDataUrl = await generateQRDataUrl(product.code);
+          return { product, qrDataUrl };
+        })
+      );
+      printLabels(labelData);
+      toast.success(`تم طباعة ${rangeProducts.length} باركود`);
+    } catch (err) {
+      toast.error('فشل في طباعة الباركودات');
+    }
+  };
+
   const printLabels = (labels: { product: Product; qrDataUrl: string }[]) => {
     const labelsHtml = labels.map(({ product, qrDataUrl }) => `
       <div class="label">
