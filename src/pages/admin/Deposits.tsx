@@ -54,6 +54,8 @@ const Deposits = () => {
   const [deposits, setDeposits] = useState<Deposit[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
+  const [filterMethod, setFilterMethod] = useState<string>('all');
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [expenseAmount, setExpenseAmount] = useState('');
