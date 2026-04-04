@@ -609,7 +609,29 @@ const Products = () => {
                 dir="rtl"
               />
             </div>
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex items-center gap-2 p-3 border rounded-lg bg-muted/50">
+              <Label className="shrink-0 text-sm">من</Label>
+              <Input
+                type="number"
+                placeholder="مثال: 1000"
+                value={rangeStart}
+                onChange={(e) => setRangeStart(e.target.value)}
+                className="w-28"
+                dir="ltr"
+              />
+              <Label className="shrink-0 text-sm">إلى</Label>
+              <Input
+                type="number"
+                placeholder="مثال: 1010"
+                value={rangeEnd}
+                onChange={(e) => setRangeEnd(e.target.value)}
+                className="w-28"
+                dir="ltr"
+              />
+              <Button onClick={printRangeLabels} size="sm" className="shrink-0">
+                <Printer className="h-4 w-4 ml-1" />
+                طباعة
+              </Button>
               <Button variant="outline" onClick={toggleSelectAll} className="gap-2">
                 {selectedForPrint.size === printFilteredProducts.length ? (
                   <CheckSquare className="h-4 w-4" />
