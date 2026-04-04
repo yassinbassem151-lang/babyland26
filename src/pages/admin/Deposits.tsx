@@ -529,10 +529,10 @@ const Deposits = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {renderMethodTable(day.cash, 'كاش', day.totalCash, 'bg-green-100 text-green-800', netCash)}
-                  {renderMethodTable(day.instapay, 'InstaPay', day.totalInstapay, 'bg-blue-100 text-blue-800')}
-                  {renderMethodTable(day.vodafone_cash, 'فودافون كاش', day.totalVodafone, 'bg-red-100 text-red-800')}
-                  {renderExpensesTable(day.expenses, day.dateKey)}
+                  {(filterMethod === 'all' || filterMethod === 'cash') && renderMethodTable(day.cash, 'كاش', day.totalCash, 'bg-green-100 text-green-800', netCash)}
+                  {(filterMethod === 'all' || filterMethod === 'instapay') && renderMethodTable(day.instapay, 'InstaPay', day.totalInstapay, 'bg-blue-100 text-blue-800')}
+                  {(filterMethod === 'all' || filterMethod === 'vodafone_cash') && renderMethodTable(day.vodafone_cash, 'فودافون كاش', day.totalVodafone, 'bg-red-100 text-red-800')}
+                  {filterMethod === 'all' && renderExpensesTable(day.expenses, day.dateKey)}
                 </CardContent>
               </Card>
             );
