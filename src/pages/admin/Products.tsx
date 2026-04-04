@@ -40,6 +40,8 @@ const Products = () => {
   const [printDialogOpen, setPrintDialogOpen] = useState(false);
   const [selectedForPrint, setSelectedForPrint] = useState<Set<string>>(new Set());
   const [printSearchCode, setPrintSearchCode] = useState('');
+  const [rangeStart, setRangeStart] = useState('');
+  const [rangeEnd, setRangeEnd] = useState('');
 
   const [formData, setFormData] = useState({
     code: '',
@@ -213,6 +215,39 @@ const Products = () => {
       );
       printLabels(labelData);
       setPrintDialogOpen(false);
+    } catch (err) {
+      toast.error('فشل في طباعة الباركودات');
+    }
+  };
+
+  const printRangeLabels = async () => {
+    const start = parseInt(rangeStart);
+    const end = parseInt(rangeEnd);
+    if (isNaN(start) || isNaN(end) || start > end) {
+      toast.error('أدخل نطاق صحيح');
+      return;
+    }
+    try {
+      const rangeProducts = products
+        .filter(p => {
+          const num = parseInt(p.code.replace(/\D/g, ''));
+          return !isNaN(num) && num >= start && num <= end;
+        })
+        .sort((a, b) => parseInt(a.code.replace(/\D/g, '')) - parseInt(b.code.replace(/\D/g, '')));
+
+      if (rangeProducts.length === 0) {
+        toast.error('لا توجد منتجات في هذا النطاق');
+        return;
+      }
+
+      const labelData = await Promise.all(
+        rangeProducts.map(async (product) => {
+          const qrDataUrl = await generateQRDataUrl(product.code);
+          return { product, qrDataUrl };
+        })
+      );
+      printLabels(labelData);
+      toast.success(`تم طباعة ${rangeProducts.length} باركود`);
     } catch (err) {
       toast.error('فشل في طباعة الباركودات');
     }
@@ -574,7 +609,29 @@ const Products = () => {
                 dir="rtl"
               />
             </div>
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex items-center gap-2 p-3 border rounded-lg bg-muted/50">
+              <Label className="shrink-0 text-sm">من</Label>
+              <Input
+                type="number"
+                placeholder="مثال: 1000"
+                value={rangeStart}
+                onChange={(e) => setRangeStart(e.target.value)}
+                className="w-28"
+                dir="ltr"
+              />
+              <Label className="shrink-0 text-sm">إلى</Label>
+              <Input
+                type="number"
+                placeholder="مثال: 1010"
+                value={rangeEnd}
+                onChange={(e) => setRangeEnd(e.target.value)}
+                className="w-28"
+                dir="ltr"
+              />
+              <Button onClick={printRangeLabels} size="sm" className="shrink-0">
+                <Printer className="h-4 w-4 ml-1" />
+                طباعة
+              </Button>
               <Button variant="outline" onClick={toggleSelectAll} className="gap-2">
                 {selectedForPrint.size === printFilteredProducts.length ? (
                   <CheckSquare className="h-4 w-4" />
