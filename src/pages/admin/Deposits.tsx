@@ -414,6 +414,52 @@ const Deposits = () => {
         )}
       </div>
 
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3">
+        <Filter className="h-4 w-4 text-muted-foreground" />
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className={cn("gap-2", filterDate && "border-primary text-primary")}>
+              <Calendar className="h-4 w-4" />
+              {filterDate ? format(filterDate, 'yyyy-MM-dd') : 'اختر اليوم'}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <CalendarComponent
+              mode="single"
+              selected={filterDate}
+              onSelect={setFilterDate}
+              initialFocus
+              className={cn("p-3 pointer-events-auto")}
+            />
+          </PopoverContent>
+        </Popover>
+
+        <div className="flex gap-2">
+          {[
+            { key: 'all', label: 'الكل' },
+            { key: 'cash', label: 'كاش' },
+            { key: 'instapay', label: 'InstaPay' },
+            { key: 'vodafone_cash', label: 'فودافون كاش' },
+          ].map((m) => (
+            <Button
+              key={m.key}
+              size="sm"
+              variant={filterMethod === m.key ? 'default' : 'outline'}
+              onClick={() => setFilterMethod(m.key)}
+            >
+              {m.label}
+            </Button>
+          ))}
+        </div>
+
+        {(filterDate || filterMethod !== 'all') && (
+          <Button variant="ghost" size="sm" onClick={() => { setFilterDate(undefined); setFilterMethod('all'); }}>
+            مسح الفلاتر
+          </Button>
+        )}
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-3">
         <Card className="border-2 border-primary/20">
           <CardContent className="pt-6">
