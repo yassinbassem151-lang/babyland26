@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Wallet, Download, Calendar, Plus, Minus, Trash2 } from 'lucide-react';
+import { Wallet, Download, Calendar, Plus, Minus, Trash2, Filter } from 'lucide-react';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -50,6 +54,8 @@ const Deposits = () => {
   const [deposits, setDeposits] = useState<Deposit[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filterDate, setFilterDate] = useState<Date | undefined>(undefined);
+  const [filterMethod, setFilterMethod] = useState<string>('all');
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [expenseAmount, setExpenseAmount] = useState('');
@@ -106,8 +112,22 @@ const Deposits = () => {
     setLoading(false);
   };
 
+  // Apply filters
+  const filteredDeposits = deposits.filter((d) => {
+    const dateObj = new Date(d.created_at);
+    const dateKey = dateObj.toISOString().split('T')[0];
+    if (filterDate && dateKey !== format(filterDate, 'yyyy-MM-dd')) return false;
+    if (filterMethod !== 'all' && d.method !== filterMethod) return false;
+    return true;
+  });
+
+  const filteredExpenses = expenses.filter((e) => {
+    if (filterDate && e.expense_date !== format(filterDate, 'yyyy-MM-dd')) return false;
+    return true;
+  });
+
   // Group deposits by day
-  const groupedByDay = deposits.reduce<Record<string, DayDeposits>>((acc, deposit) => {
+  const groupedByDay = filteredDeposits.reduce<Record<string, DayDeposits>>((acc, deposit) => {
     const dateObj = new Date(deposit.created_at);
     const dateKey = dateObj.toISOString().split('T')[0];
     const date = dateObj.toLocaleDateString('ar-EG', {
@@ -147,13 +167,12 @@ const Deposits = () => {
   }, {});
 
   // Add expenses to the grouped data
-  expenses.forEach((expense) => {
+  filteredExpenses.forEach((expense) => {
     const dateKey = expense.expense_date;
     if (groupedByDay[dateKey]) {
       groupedByDay[dateKey].expenses.push(expense);
       groupedByDay[dateKey].totalExpenses += expense.amount;
     } else {
-      // Create a new day entry for expenses without deposits
       const dateObj = new Date(expense.expense_date);
       const date = dateObj.toLocaleDateString('ar-EG', {
         year: 'numeric',
@@ -180,8 +199,8 @@ const Deposits = () => {
     new Date(b.dateKey).getTime() - new Date(a.dateKey).getTime()
   );
 
-  const totalDeposits = deposits.reduce((sum, d) => sum + d.amount, 0);
-  const totalExpensesAmount = expenses.reduce((sum, e) => sum + e.amount, 0);
+  const totalDeposits = filteredDeposits.reduce((sum, d) => sum + d.amount, 0);
+  const totalExpensesAmount = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
 
   const handleAddExpense = async () => {
     if (!activeVersion) return;
@@ -395,6 +414,52 @@ const Deposits = () => {
         )}
       </div>
 
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3">
+        <Filter className="h-4 w-4 text-muted-foreground" />
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className={cn("gap-2", filterDate && "border-primary text-primary")}>
+              <Calendar className="h-4 w-4" />
+              {filterDate ? format(filterDate, 'yyyy-MM-dd') : 'اختر اليوم'}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <CalendarComponent
+              mode="single"
+              selected={filterDate}
+              onSelect={setFilterDate}
+              initialFocus
+              className={cn("p-3 pointer-events-auto")}
+            />
+          </PopoverContent>
+        </Popover>
+
+        <div className="flex gap-2">
+          {[
+            { key: 'all', label: 'الكل' },
+            { key: 'cash', label: 'كاش' },
+            { key: 'instapay', label: 'InstaPay' },
+            { key: 'vodafone_cash', label: 'فودافون كاش' },
+          ].map((m) => (
+            <Button
+              key={m.key}
+              size="sm"
+              variant={filterMethod === m.key ? 'default' : 'outline'}
+              onClick={() => setFilterMethod(m.key)}
+            >
+              {m.label}
+            </Button>
+          ))}
+        </div>
+
+        {(filterDate || filterMethod !== 'all') && (
+          <Button variant="ghost" size="sm" onClick={() => { setFilterDate(undefined); setFilterMethod('all'); }}>
+            مسح الفلاتر
+          </Button>
+        )}
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-3">
         <Card className="border-2 border-primary/20">
           <CardContent className="pt-6">
@@ -464,10 +529,10 @@ const Deposits = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {renderMethodTable(day.cash, 'كاش', day.totalCash, 'bg-green-100 text-green-800', netCash)}
-                  {renderMethodTable(day.instapay, 'InstaPay', day.totalInstapay, 'bg-blue-100 text-blue-800')}
-                  {renderMethodTable(day.vodafone_cash, 'فودافون كاش', day.totalVodafone, 'bg-red-100 text-red-800')}
-                  {renderExpensesTable(day.expenses, day.dateKey)}
+                  {(filterMethod === 'all' || filterMethod === 'cash') && renderMethodTable(day.cash, 'كاش', day.totalCash, 'bg-green-100 text-green-800', netCash)}
+                  {(filterMethod === 'all' || filterMethod === 'instapay') && renderMethodTable(day.instapay, 'InstaPay', day.totalInstapay, 'bg-blue-100 text-blue-800')}
+                  {(filterMethod === 'all' || filterMethod === 'vodafone_cash') && renderMethodTable(day.vodafone_cash, 'فودافون كاش', day.totalVodafone, 'bg-red-100 text-red-800')}
+                  {filterMethod === 'all' && renderExpensesTable(day.expenses, day.dateKey)}
                 </CardContent>
               </Card>
             );
