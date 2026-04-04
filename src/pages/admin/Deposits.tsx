@@ -112,8 +112,22 @@ const Deposits = () => {
     setLoading(false);
   };
 
+  // Apply filters
+  const filteredDeposits = deposits.filter((d) => {
+    const dateObj = new Date(d.created_at);
+    const dateKey = dateObj.toISOString().split('T')[0];
+    if (filterDate && dateKey !== format(filterDate, 'yyyy-MM-dd')) return false;
+    if (filterMethod !== 'all' && d.method !== filterMethod) return false;
+    return true;
+  });
+
+  const filteredExpenses = expenses.filter((e) => {
+    if (filterDate && e.expense_date !== format(filterDate, 'yyyy-MM-dd')) return false;
+    return true;
+  });
+
   // Group deposits by day
-  const groupedByDay = deposits.reduce<Record<string, DayDeposits>>((acc, deposit) => {
+  const groupedByDay = filteredDeposits.reduce<Record<string, DayDeposits>>((acc, deposit) => {
     const dateObj = new Date(deposit.created_at);
     const dateKey = dateObj.toISOString().split('T')[0];
     const date = dateObj.toLocaleDateString('ar-EG', {
@@ -153,13 +167,12 @@ const Deposits = () => {
   }, {});
 
   // Add expenses to the grouped data
-  expenses.forEach((expense) => {
+  filteredExpenses.forEach((expense) => {
     const dateKey = expense.expense_date;
     if (groupedByDay[dateKey]) {
       groupedByDay[dateKey].expenses.push(expense);
       groupedByDay[dateKey].totalExpenses += expense.amount;
     } else {
-      // Create a new day entry for expenses without deposits
       const dateObj = new Date(expense.expense_date);
       const date = dateObj.toLocaleDateString('ar-EG', {
         year: 'numeric',
@@ -186,8 +199,8 @@ const Deposits = () => {
     new Date(b.dateKey).getTime() - new Date(a.dateKey).getTime()
   );
 
-  const totalDeposits = deposits.reduce((sum, d) => sum + d.amount, 0);
-  const totalExpensesAmount = expenses.reduce((sum, e) => sum + e.amount, 0);
+  const totalDeposits = filteredDeposits.reduce((sum, d) => sum + d.amount, 0);
+  const totalExpensesAmount = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
 
   const handleAddExpense = async () => {
     if (!activeVersion) return;
