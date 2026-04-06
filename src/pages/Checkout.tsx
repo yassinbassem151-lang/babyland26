@@ -220,6 +220,7 @@ const Checkout = () => {
   const [isOldCustomer, setIsOldCustomer] = useState(false);
   const [customerSearch, setCustomerSearch] = useState('');
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [dbCustomers, setDbCustomers] = useState<typeof oldCustomersData>([]);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -234,6 +235,27 @@ const Checkout = () => {
 
   const total = subtotal - formData.depositAmount;
 
+  // Load old customers from database (is_new = false)
+  useEffect(() => {
+    const loadDbCustomers = async () => {
+      const { data } = await supabase
+        .from('customers')
+        .select('name, shop_name, phone, address')
+        .eq('is_new', false);
+      
+      if (data) {
+        const mapped = data.map(c => ({
+          name: c.name,
+          shopName: c.shop_name || '',
+          address: c.address || '',
+          phone: c.phone,
+        }));
+        setDbCustomers(mapped);
+      }
+    };
+    loadDbCustomers();
+  }, []);
+
   // Filter customers based on search
   // Normalize phone number - remove leading 0, 20, 2, country codes
   const normalizePhone = (phone: string): string => {
@@ -244,6 +266,23 @@ const Checkout = () => {
     return normalized;
   };
 
+  // Combine hardcoded + DB customers, deduplicate by normalized phone
+  const allOldCustomers = useMemo(() => {
+    const phoneMap = new Map<string, typeof oldCustomersData[0]>();
+    // DB customers take priority (more recent data)
+    for (const c of dbCustomers) {
+      phoneMap.set(normalizePhone(c.phone), c);
+    }
+    // Add hardcoded ones only if phone not already present
+    for (const c of oldCustomersData) {
+      const norm = normalizePhone(c.phone);
+      if (!phoneMap.has(norm)) {
+        phoneMap.set(norm, c);
+      }
+    }
+    return Array.from(phoneMap.values());
+  }, [dbCustomers]);
+
   // Only show customer when exact phone match is found
   const filteredCustomers = useMemo(() => {
     if (!customerSearch.trim()) return [];
@@ -252,12 +291,12 @@ const Checkout = () => {
     // Must have at least 9 digits for a valid phone search
     if (searchNormalized.length < 9) return [];
     
-    return oldCustomersData.filter((c) => {
+    return allOldCustomers.filter((c) => {
       const customerPhoneNormalized = normalizePhone(c.phone);
       return customerPhoneNormalized === searchNormalized ||
              c.name.toLowerCase() === customerSearch.toLowerCase();
     });
-  }, [customerSearch]);
+  }, [customerSearch, allOldCustomers]);
 
   const handleOldCustomerToggle = () => {
     setIsOldCustomer(!isOldCustomer);
