@@ -9,6 +9,7 @@ import { useVersion } from '@/contexts/VersionContext';
 const VersionSelector = () => {
   const { versions, activeVersion, setActiveVersion, createVersion, renameVersion, deleteVersion, loading } = useVersion();
   const [newVersionName, setNewVersionName] = useState('');
+  const [mergeProducts, setMergeProducts] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -16,8 +17,9 @@ const VersionSelector = () => {
   const [renameValue, setRenameValue] = useState('');
 
   const handleCreateVersion = async () => {
-    await createVersion(newVersionName);
+    await createVersion(newVersionName, mergeProducts);
     setNewVersionName('');
+    setMergeProducts(true);
     setDialogOpen(false);
   };
 
