@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Layers, Plus, Check, Pencil, Trash2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -125,8 +126,18 @@ const VersionSelector = () => {
                 />
               </div>
               <p className="text-sm text-muted-foreground">
-                سيتم إنشاء نسخة جديدة فارغة وسيبدأ ترقيم الطلبات من 1
+                سيتم إنشاء نسخة جديدة وسيبدأ ترقيم الطلبات من 1
               </p>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="mergeProducts"
+                  checked={mergeProducts}
+                  onCheckedChange={(checked) => setMergeProducts(checked === true)}
+                />
+                <Label htmlFor="mergeProducts" className="text-sm cursor-pointer">
+                  نسخ جميع المنتجات من النسخة الحالية
+                </Label>
+              </div>
               <Button onClick={handleCreateVersion} className="w-full">
                 إنشاء النسخة
               </Button>
