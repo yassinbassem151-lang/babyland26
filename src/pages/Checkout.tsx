@@ -437,7 +437,14 @@ const Checkout = () => {
         if (itemsError) throw itemsError;
       }
 
-      // Check stock levels after deduction
+      // Mark customer as old after successful order so they appear in old customer search next time
+      if (customerId) {
+        await supabase
+          .from('customers')
+          .update({ is_new: false })
+          .eq('id', customerId);
+      }
+
       const productIds = items.map(item => item.productId);
       const { data: updatedProducts } = await supabase
         .from('products')
