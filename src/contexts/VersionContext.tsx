@@ -14,7 +14,7 @@ interface VersionContextType {
   activeVersion: Version | null;
   loading: boolean;
   setActiveVersion: (version: Version) => Promise<void>;
-  createVersion: (name: string) => Promise<void>;
+  createVersion: (name: string, mergeProducts?: boolean) => Promise<void>;
   renameVersion: (versionId: string, newName: string) => Promise<void>;
   deleteVersion: (versionId: string) => Promise<void>;
   loadVersions: () => Promise<void>;
@@ -73,11 +73,14 @@ export const VersionProvider = ({ children }: { children: ReactNode }) => {
     await loadVersions();
   };
 
-  const createVersion = async (name: string) => {
+  const createVersion = async (name: string, mergeProducts: boolean = false) => {
     if (!name.trim()) {
       toast.error('يرجى إدخال اسم النسخة');
       return;
     }
+
+    // Remember the current active version for product merging
+    const previousActiveVersion = activeVersion;
 
     // Deactivate all versions first
     await supabase
@@ -95,6 +98,29 @@ export const VersionProvider = ({ children }: { children: ReactNode }) => {
     if (error) {
       toast.error('فشل في إنشاء النسخة');
       return;
+    }
+
+    // Merge products from previous version if requested
+    if (mergeProducts && previousActiveVersion && data) {
+      const { data: oldProducts, error: fetchError } = await supabase
+        .from('products')
+        .select('code, name, description, price, image_url, stock_quantity, low_stock_threshold')
+        .eq('version_id', previousActiveVersion.id);
+
+      if (!fetchError && oldProducts && oldProducts.length > 0) {
+        const newProducts = oldProducts.map(p => ({
+          ...p,
+          version_id: data.id,
+        }));
+
+        // Insert in batches of 100
+        for (let i = 0; i < newProducts.length; i += 100) {
+          const batch = newProducts.slice(i, i + 100);
+          await supabase.from('products').insert(batch);
+        }
+
+        toast.success(`تم نسخ ${oldProducts.length} منتج إلى النسخة الجديدة`);
+      }
     }
 
     toast.success(`تم إنشاء نسخة جديدة: ${name}`);
