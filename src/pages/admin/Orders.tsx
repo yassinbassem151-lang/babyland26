@@ -536,6 +536,134 @@ const Orders = () => {
     setTimeout(() => URL.revokeObjectURL(url), 60000);
   };
 
+  const toggleOrderSelection = (orderId: string) => {
+    setSelectedOrderIds(prev => {
+      const next = new Set(prev);
+      if (next.has(orderId)) next.delete(orderId);
+      else next.add(orderId);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedOrderIds.size === filteredOrders.length) {
+      setSelectedOrderIds(new Set());
+    } else {
+      setSelectedOrderIds(new Set(filteredOrders.map(o => o.id)));
+    }
+  };
+
+  const handlePrintSelected = async () => {
+    const ordersToPrint = filteredOrders.filter(o => selectedOrderIds.has(o.id));
+    if (ordersToPrint.length === 0) {
+      toast.error('اختر طلب واحد على الأقل');
+      return;
+    }
+
+    // Load items for all selected orders
+    const ordersWithItems = await Promise.all(
+      ordersToPrint.map(async (order) => {
+        const items = await loadOrderItems(order.id);
+        return { ...order, items };
+      })
+    );
+
+    const logoBase64 = await getLogoBase64();
+
+    const allInvoicesHtml = ordersWithItems.map(order => {
+      const calculatedSubtotal = order.items.reduce((sum: number, item: OrderItem) => sum + calculateItemTotal(item), 0);
+      const calculatedTotal = calculatedSubtotal - order.deposit_amount;
+
+      return `
+        <div style="page-break-after: always;">
+          <div class="header">
+            ${logoBase64 ? `<img src="${logoBase64}" alt="Babyland Logo" />` : ''}
+            <h1>Babyland</h1>
+            <p>Kids in Style</p>
+            <h2>فاتورة رقم ${order.order_number}</h2>
+          </div>
+          <div class="info">
+            <p><strong>العميل:</strong> ${order.customer_name}</p>
+            ${order.shop_name ? `<p><strong>المحل:</strong> ${order.shop_name}</p>` : ''}
+            <p><strong>الهاتف:</strong> ${order.phone}</p>
+            ${order.address ? `<p><strong>العنوان:</strong> ${order.address}</p>` : ''}
+            <p><strong>التاريخ:</strong> ${new Date(order.created_at).toLocaleDateString('ar-EG')}</p>
+            ${order.extra_info ? `<p><strong>ملاحظات:</strong> ${order.extra_info}</p>` : ''}
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>الكود</th>
+                <th>المنتج</th>
+                <th>السعر</th>
+                <th>الكمية</th>
+                <th>الإجمالي</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${[...order.items].sort((a: OrderItem, b: OrderItem) => a.product_code.localeCompare(b.product_code, undefined, { numeric: true })).map((item: OrderItem) => {
+                let displayQuantity = item.quantity;
+                const multiplier = getDescriptionMultiplier(item.product_description);
+                if (multiplier > 1) displayQuantity = item.quantity * multiplier;
+                const itemTotal = calculateItemTotal(item);
+                return `
+                  <tr>
+                    <td>${item.product_code}</td>
+                    <td>${item.product_name}</td>
+                    <td>${item.price} ج.م</td>
+                    <td>${displayQuantity}</td>
+                    <td>${itemTotal.toFixed(2)} ج.م</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+          <div class="totals">
+            <p>الإجمالي الفرعي: ${calculatedSubtotal.toFixed(2)} ج.م</p>
+            ${order.deposit_amount > 0 ? `<p>العربون (${order.deposit_method}): -${order.deposit_amount.toFixed(2)} ج.م</p>` : ''}
+            <p class="total">المطلوب: ${calculatedTotal.toFixed(2)} ج.م</p>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    const fullHtml = `
+      <!DOCTYPE html>
+      <html dir="rtl" lang="ar">
+      <head>
+        <meta charset="UTF-8">
+        <title>طباعة فواتير</title>
+        <style>
+          body { font-family: 'Cairo', Arial, sans-serif; padding: 20px; direction: rtl; }
+          .header { text-align: center; margin-bottom: 30px; }
+          .header img { width: 150px; height: auto; object-fit: contain; margin-bottom: 10px; }
+          .header h1 { color: #00bfff; margin: 0; }
+          .header p { color: #ff69b4; }
+          .info { margin-bottom: 20px; }
+          .info p { margin: 5px 0; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+          th, td { border: 1px solid #ddd; padding: 10px; text-align: right; }
+          th { background: #00bfff; color: white; }
+          .totals { text-align: left; }
+          .totals p { margin: 5px 0; }
+          .totals .total { font-size: 1.2em; font-weight: bold; color: #00bfff; }
+          @media print { div[style*="page-break-after"]:last-child { page-break-after: avoid; } }
+        </style>
+      </head>
+      <body>
+        ${allInvoicesHtml}
+      </body>
+      </html>
+    `;
+
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(fullHtml);
+      printWindow.document.close();
+      setTimeout(() => printWindow.print(), 500);
+    }
+  };
+
   const filteredOrders = searchCode
     ? orders.filter((o) => 
         o.order_number.toString().includes(searchCode) ||
