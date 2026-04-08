@@ -459,6 +459,7 @@ const Orders = () => {
           <p><strong>الهاتف:</strong> ${order.phone}</p>
           ${order.address ? `<p><strong>العنوان:</strong> ${order.address}</p>` : ''}
           <p><strong>التاريخ:</strong> ${new Date(order.created_at).toLocaleDateString('ar-EG')}</p>
+          ${order.staff_member_name ? `<p><strong>البائع:</strong> ${order.staff_member_name}</p>` : ''}
           ${order.extra_info ? `<p><strong>ملاحظات:</strong> ${order.extra_info}</p>` : ''}
         </div>
         <table>
@@ -588,6 +589,7 @@ const Orders = () => {
             <p><strong>الهاتف:</strong> ${order.phone}</p>
             ${order.address ? `<p><strong>العنوان:</strong> ${order.address}</p>` : ''}
             <p><strong>التاريخ:</strong> ${new Date(order.created_at).toLocaleDateString('ar-EG')}</p>
+            ${order.staff_member_name ? `<p><strong>البائع:</strong> ${order.staff_member_name}</p>` : ''}
             ${order.extra_info ? `<p><strong>ملاحظات:</strong> ${order.extra_info}</p>` : ''}
           </div>
           <table>
