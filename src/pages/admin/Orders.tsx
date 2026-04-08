@@ -710,15 +710,29 @@ const Orders = () => {
         </Card>
       ) : (
         <div className="space-y-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Checkbox
+              checked={selectedOrderIds.size === filteredOrders.length && filteredOrders.length > 0}
+              onCheckedChange={toggleSelectAll}
+            />
+            <span className="text-sm text-muted-foreground">تحديد الكل</span>
+          </div>
           {filteredOrders.map((order) => (
-            <Card key={order.id} className="hover:shadow-baby transition-shadow">
+            <Card key={order.id} className={`hover:shadow-baby transition-shadow ${selectedOrderIds.has(order.id) ? 'ring-2 ring-primary' : ''}`}>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
+                    <Checkbox
+                      checked={selectedOrderIds.has(order.id)}
+                      onCheckedChange={() => toggleOrderSelection(order.id)}
+                    />
                     <div className="text-3xl font-bold text-primary">#{order.order_number}</div>
                     <div>
                       <p className="font-bold">{order.customer_name}</p>
                       <p className="text-sm text-muted-foreground">{order.phone}</p>
+                      <p className="text-xs text-muted-foreground">
+                        📅 {new Date(order.created_at).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' })}
+                      </p>
                       {order.staff_member_name ? (
                         <Badge className="bg-purple-100 text-purple-800 mt-1">
                           👷 موظف: {order.staff_member_name}
