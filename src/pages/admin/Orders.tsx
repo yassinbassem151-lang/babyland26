@@ -681,6 +681,12 @@ const Orders = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">الطلبات</h1>
+        {selectedOrderIds.size > 0 && (
+          <Button onClick={handlePrintSelected} className="gap-2">
+            <Printer className="h-4 w-4" />
+            طباعة ({selectedOrderIds.size}) فاتورة
+          </Button>
+        )}
       </div>
 
       <div className="relative max-w-md">
