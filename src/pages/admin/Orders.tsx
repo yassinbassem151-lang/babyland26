@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import logoImage from '@/assets/baby-land-logo.jpg';
 import { useVersion } from '@/contexts/VersionContext';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface OrderItem {
   id: string;
