@@ -49,7 +49,7 @@ const Index = () => {
       console.error('QR scan error:', err);
       toast.error('حدث خطأ في قراءة المنتج');
     }
-  }, [addItem]);
+  }, [addItem, activeVersion]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-baby-blue-light via-background to-baby-pink-light">
