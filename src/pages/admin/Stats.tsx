@@ -29,6 +29,7 @@ interface StockAlert {
 
 const Stats = () => {
   const { activeVersion } = useVersion();
+  const isFullAdmin = sessionStorage.getItem('babyland_admin') === 'true';
   const [stats, setStats] = useState<Stats>({
     totalProducts: 0,
     totalOrders: 0,
@@ -116,7 +117,7 @@ const Stats = () => {
     { title: 'المنتجات', value: stats.totalProducts, icon: Package, color: 'text-primary' },
     { title: 'الطلبات', value: stats.totalOrders, icon: ShoppingCart, color: 'text-secondary' },
     { title: 'العملاء', value: stats.totalCustomers, icon: Users, color: 'text-primary' },
-    { title: 'الإيرادات', value: `${stats.totalRevenue.toFixed(2)} ج.م`, icon: TrendingUp, color: 'text-secondary' },
+    ...(isFullAdmin ? [{ title: 'الإيرادات', value: `${stats.totalRevenue.toFixed(2)} ج.م`, icon: TrendingUp, color: 'text-secondary' }] : []),
   ];
 
   const newAlerts = stockAlerts.filter(a => !a.acknowledged);
