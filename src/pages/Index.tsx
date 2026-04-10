@@ -15,14 +15,20 @@ import { MessageCircle, FileEdit } from 'lucide-react';
 
 const Index = () => {
   const { addItem, extraInfo, setExtraInfo } = useCart();
+  const { activeVersion } = useVersion();
 
   const handleQRScan = useCallback(async (code: string) => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('products')
         .select('*')
-        .eq('code', code)
-        .maybeSingle();
+        .eq('code', code);
+      
+      if (activeVersion) {
+        query = query.eq('version_id', activeVersion.id);
+      }
+      
+      const { data, error } = await query.maybeSingle();
 
       if (error) throw error;
 
