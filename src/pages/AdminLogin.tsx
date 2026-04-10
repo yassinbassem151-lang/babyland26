@@ -8,22 +8,35 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import babylandLogo from '@/assets/babyland-logo.jpg';
 
-const ADMIN_PASSWORD = '1980';
-
 const AdminLogin = () => {
   const navigate = useNavigate();
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loginMode, setLoginMode] = useState<'admin' | 'staff'>('admin');
-  const [staffName, setStaffName] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
     
     if (loginMode === 'admin') {
-      if (password === ADMIN_PASSWORD) {
+      // Fetch admin password from DB
+      const { data, error } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'admin_password')
+        .maybeSingle();
+
+      setLoading(false);
+
+      if (error || !data) {
+        toast.error('حدث خطأ في التحقق');
+        return;
+      }
+
+      if (password === data.value) {
         sessionStorage.setItem('babyland_admin', 'true');
+        sessionStorage.removeItem('babyland_staff');
         toast.success('تم تسجيل الدخول بنجاح');
         navigate('/admin/dashboard');
       } else {
@@ -31,7 +44,6 @@ const AdminLogin = () => {
       }
     } else {
       // Staff login
-      setLoading(true);
       const { data, error } = await supabase
         .from('staff_members')
         .select('*')
@@ -46,12 +58,27 @@ const AdminLogin = () => {
       }
 
       const staffMember = data[0];
-      sessionStorage.setItem('babyland_staff', JSON.stringify({
-        id: staffMember.id,
-        name: staffMember.name,
-      }));
-      toast.success(`مرحباً ${staffMember.name}`);
-      navigate('/');
+      const permissions = (staffMember as any).permissions || [];
+      
+      if (permissions.length === 0) {
+        // No admin permissions - go to store
+        sessionStorage.setItem('babyland_staff', JSON.stringify({
+          id: staffMember.id,
+          name: staffMember.name,
+        }));
+        toast.success(`مرحباً ${staffMember.name}`);
+        navigate('/');
+      } else {
+        // Has admin permissions - go to admin panel
+        sessionStorage.setItem('babyland_staff', JSON.stringify({
+          id: staffMember.id,
+          name: staffMember.name,
+          permissions,
+        }));
+        sessionStorage.setItem('babyland_admin', 'staff');
+        toast.success(`مرحباً ${staffMember.name}`);
+        navigate('/admin/dashboard');
+      }
     }
   };
 
@@ -67,7 +94,6 @@ const AdminLogin = () => {
           <CardTitle className="text-2xl gradient-text">
             {loginMode === 'admin' ? 'لوحة التحكم' : 'تسجيل دخول الموظفين'}
           </CardTitle>
-          {/* Toggle between admin and staff */}
           <div className="flex gap-2 justify-center">
             <Button
               type="button"
