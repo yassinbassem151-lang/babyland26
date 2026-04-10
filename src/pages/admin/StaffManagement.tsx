@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
-import { Users, Plus, Trash2, Eye, EyeOff } from 'lucide-react';
+import { Users, Plus, Trash2, Eye, EyeOff, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { ALL_PERMISSIONS, PERMISSION_LABELS } from '@/pages/AdminDashboard';
 
 interface StaffMember {
   id: string;
@@ -16,6 +18,7 @@ interface StaffMember {
   password: string;
   is_active: boolean;
   created_at: string;
+  permissions: string[];
 }
 
 const StaffManagement = () => {
@@ -24,7 +27,10 @@ const StaffManagement = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newName, setNewName] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [newPermissions, setNewPermissions] = useState<string[]>([]);
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
+  const [editingPermissions, setEditingPermissions] = useState<string | null>(null);
+  const [editPermissions, setEditPermissions] = useState<string[]>([]);
 
   useEffect(() => {
     loadStaff();
@@ -40,7 +46,7 @@ const StaffManagement = () => {
     if (error) {
       toast.error('فشل في تحميل الموظفين');
     } else {
-      setStaff((data as StaffMember[]) || []);
+      setStaff((data as unknown as StaffMember[]) || []);
     }
     setLoading(false);
   };
@@ -58,7 +64,8 @@ const StaffManagement = () => {
     const { error } = await supabase.from('staff_members').insert({
       name: newName.trim(),
       password: newPassword,
-    });
+      permissions: newPermissions,
+    } as any);
 
     if (error) {
       toast.error('فشل في إنشاء الحساب');
@@ -67,6 +74,7 @@ const StaffManagement = () => {
       setDialogOpen(false);
       setNewName('');
       setNewPassword('');
+      setNewPermissions([]);
       loadStaff();
     }
   };
@@ -94,6 +102,39 @@ const StaffManagement = () => {
       loadStaff();
     }
   };
+
+  const handleSavePermissions = async (id: string) => {
+    const { error } = await supabase
+      .from('staff_members')
+      .update({ permissions: editPermissions } as any)
+      .eq('id', id);
+
+    if (error) {
+      toast.error('فشل في تحديث الصلاحيات');
+    } else {
+      toast.success('تم تحديث الصلاحيات');
+      setEditingPermissions(null);
+      loadStaff();
+    }
+  };
+
+  const togglePermission = (perm: string, list: string[], setter: (v: string[]) => void) => {
+    setter(list.includes(perm) ? list.filter(p => p !== perm) : [...list, perm]);
+  };
+
+  const PermissionChecklist = ({ permissions, onChange }: { permissions: string[]; onChange: (p: string[]) => void }) => (
+    <div className="grid grid-cols-2 gap-2">
+      {ALL_PERMISSIONS.map(perm => (
+        <label key={perm} className="flex items-center gap-2 text-sm cursor-pointer p-1.5 rounded hover:bg-muted">
+          <Checkbox
+            checked={permissions.includes(perm)}
+            onCheckedChange={() => togglePermission(perm, permissions, onChange)}
+          />
+          {PERMISSION_LABELS[perm]}
+        </label>
+      ))}
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -141,12 +182,31 @@ const StaffManagement = () => {
                           {showPasswords[member.id] ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
                         </button>
                       </div>
+                      {member.permissions && member.permissions.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {member.permissions.map(p => (
+                            <Badge key={p} variant="secondary" className="text-xs">
+                              {PERMISSION_LABELS[p] || p}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
                       <p className="text-xs text-muted-foreground mt-1">
                         {new Date(member.created_at).toLocaleDateString('ar-EG')}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setEditingPermissions(member.id);
+                        setEditPermissions(member.permissions || []);
+                      }}
+                    >
+                      <Shield className="h-4 w-4" />
+                    </Button>
                     <div className="flex items-center gap-2">
                       <Switch
                         checked={member.is_active}
@@ -161,6 +221,18 @@ const StaffManagement = () => {
                     </Button>
                   </div>
                 </div>
+
+                {/* Inline permissions editor */}
+                {editingPermissions === member.id && (
+                  <div className="mt-4 p-3 border rounded-lg bg-muted/50">
+                    <p className="font-medium mb-2 text-sm">صلاحيات لوحة التحكم:</p>
+                    <PermissionChecklist permissions={editPermissions} onChange={setEditPermissions} />
+                    <div className="flex gap-2 mt-3">
+                      <Button size="sm" onClick={() => handleSavePermissions(member.id)}>حفظ</Button>
+                      <Button size="sm" variant="outline" onClick={() => setEditingPermissions(null)}>إلغاء</Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
@@ -169,7 +241,7 @@ const StaffManagement = () => {
 
       {/* Create Staff Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>إضافة موظف جديد</DialogTitle>
           </DialogHeader>
@@ -197,6 +269,13 @@ const StaffManagement = () => {
                 dir="ltr"
                 className="text-center text-2xl tracking-widest"
               />
+            </div>
+            <div>
+              <Label className="flex items-center gap-2 mb-2">
+                <Shield className="h-4 w-4" />
+                صلاحيات لوحة التحكم (اختياري)
+              </Label>
+              <PermissionChecklist permissions={newPermissions} onChange={setNewPermissions} />
             </div>
             <Button onClick={handleCreate} className="w-full" disabled={!newName.trim() || newPassword.length !== 4}>
               إنشاء الحساب

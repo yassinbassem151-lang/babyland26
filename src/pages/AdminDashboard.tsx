@@ -1,42 +1,80 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link, Outlet, useLocation } from 'react-router-dom';
-import { Package, ShoppingCart, Users, BarChart3, LogOut, Wallet, SearchCode, FileText, ImagePlus, Menu, X, Bell, UserCog, ClipboardList } from 'lucide-react';
+import { Package, ShoppingCart, Users, BarChart3, LogOut, Wallet, SearchCode, FileText, ImagePlus, Menu, X, Bell, UserCog, ClipboardList, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import babylandLogo from '@/assets/babyland-logo.jpg';
 import { VersionProvider } from '@/contexts/VersionContext';
 import VersionSelector from '@/components/VersionSelector';
+import ChangePasswordDialog from '@/components/ChangePasswordDialog';
 
-const navItems = [
-  { path: '/admin/dashboard', label: 'الإحصائيات', icon: BarChart3 },
-  { path: '/admin/dashboard/products', label: 'المنتجات', icon: Package },
-  { path: '/admin/dashboard/orders', label: 'الطلبات', icon: ShoppingCart },
-  { path: '/admin/dashboard/customers', label: 'العملاء', icon: Users },
-  { path: '/admin/dashboard/deposits', label: 'العربون', icon: Wallet },
-  { path: '/admin/dashboard/search-by-code', label: 'البحث بالكود', icon: SearchCode },
-  { path: '/admin/dashboard/customer-extra-info', label: 'معلومات إضافية', icon: FileText },
-  { path: '/admin/dashboard/product-images', label: 'صور المنتجات', icon: ImagePlus },
-  { path: '/admin/dashboard/stock-alerts', label: 'تنبيهات المخزون', icon: Bell },
-  { path: '/admin/dashboard/product-report', label: 'تقرير المنتجات', icon: ClipboardList },
-  { path: '/admin/dashboard/staff', label: 'الموظفين', icon: UserCog },
+// Each nav item has a permission key
+const allNavItems = [
+  { path: '/admin/dashboard', label: 'الإحصائيات', icon: BarChart3, permission: 'stats' },
+  { path: '/admin/dashboard/products', label: 'المنتجات', icon: Package, permission: 'products' },
+  { path: '/admin/dashboard/orders', label: 'الطلبات', icon: ShoppingCart, permission: 'orders' },
+  { path: '/admin/dashboard/customers', label: 'العملاء', icon: Users, permission: 'customers' },
+  { path: '/admin/dashboard/deposits', label: 'العربون', icon: Wallet, permission: 'deposits' },
+  { path: '/admin/dashboard/search-by-code', label: 'البحث بالكود', icon: SearchCode, permission: 'search' },
+  { path: '/admin/dashboard/customer-extra-info', label: 'معلومات إضافية', icon: FileText, permission: 'extra_info' },
+  { path: '/admin/dashboard/product-images', label: 'صور المنتجات', icon: ImagePlus, permission: 'images' },
+  { path: '/admin/dashboard/stock-alerts', label: 'تنبيهات المخزون', icon: Bell, permission: 'stock_alerts' },
+  { path: '/admin/dashboard/product-report', label: 'تقرير المنتجات', icon: ClipboardList, permission: 'product_report' },
+  { path: '/admin/dashboard/staff', label: 'الموظفين', icon: UserCog, permission: 'staff' },
 ];
+
+export const PERMISSION_LABELS: Record<string, string> = {
+  stats: 'الإحصائيات',
+  products: 'المنتجات',
+  orders: 'الطلبات',
+  customers: 'العملاء',
+  deposits: 'العربون',
+  search: 'البحث بالكود',
+  extra_info: 'معلومات إضافية',
+  images: 'صور المنتجات',
+  stock_alerts: 'تنبيهات المخزون',
+  product_report: 'تقرير المنتجات',
+  staff: 'الموظفين',
+};
+
+export const ALL_PERMISSIONS = Object.keys(PERMISSION_LABELS);
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isAuth, setIsAuth] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isFullAdmin, setIsFullAdmin] = useState(false);
+  const [navItems, setNavItems] = useState(allNavItems);
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
 
   useEffect(() => {
     const auth = sessionStorage.getItem('babyland_admin');
     if (!auth) {
       navigate('/admin');
-    } else {
-      setIsAuth(true);
+      return;
     }
+
+    if (auth === 'true') {
+      // Full admin
+      setIsFullAdmin(true);
+      setNavItems(allNavItems);
+    } else if (auth === 'staff') {
+      // Staff with permissions
+      const staffData = sessionStorage.getItem('babyland_staff');
+      if (staffData) {
+        const staff = JSON.parse(staffData);
+        const permissions: string[] = staff.permissions || [];
+        const filtered = allNavItems.filter(item => permissions.includes(item.permission));
+        setNavItems(filtered);
+      }
+    }
+
+    setIsAuth(true);
   }, [navigate]);
 
   const handleLogout = () => {
     sessionStorage.removeItem('babyland_admin');
+    sessionStorage.removeItem('babyland_staff');
     navigate('/admin');
   };
 
@@ -45,7 +83,6 @@ const AdminDashboard = () => {
   return (
     <VersionProvider>
       <div className="min-h-screen bg-background flex">
-        {/* Sidebar Toggle Button */}
         <Button
           variant="ghost"
           size="icon"
@@ -55,7 +92,6 @@ const AdminDashboard = () => {
           {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </Button>
 
-        {/* Overlay for mobile */}
         {sidebarOpen && (
           <div
             className="fixed inset-0 bg-black/50 z-30 lg:hidden"
@@ -63,7 +99,6 @@ const AdminDashboard = () => {
           />
         )}
 
-        {/* Sidebar */}
         <aside className={`
           fixed lg:sticky top-0 h-screen z-40
           bg-card border-l border-border flex flex-col
@@ -115,7 +150,18 @@ const AdminDashboard = () => {
             })}
           </nav>
 
-          <div className="p-4 border-t border-border min-w-[256px] lg:min-w-0">
+          <div className="p-4 border-t border-border min-w-[256px] lg:min-w-0 space-y-2">
+            {isFullAdmin && (
+              <Button
+                variant="ghost"
+                onClick={() => setShowPasswordDialog(true)}
+                className={`w-full gap-3 ${sidebarOpen ? 'justify-start' : 'justify-center'}`}
+                title={!sidebarOpen ? 'تغيير كلمة المرور' : undefined}
+              >
+                <Settings className="h-5 w-5 flex-shrink-0" />
+                {sidebarOpen && <span>تغيير كلمة المرور</span>}
+              </Button>
+            )}
             <Button
               variant="ghost"
               onClick={handleLogout}
@@ -128,10 +174,13 @@ const AdminDashboard = () => {
           </div>
         </aside>
 
-        {/* Main Content */}
         <main className="flex-1 p-6 overflow-auto">
           <Outlet />
         </main>
+
+        {isFullAdmin && (
+          <ChangePasswordDialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog} />
+        )}
       </div>
     </VersionProvider>
   );
