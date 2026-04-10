@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useCart } from '@/contexts/CartContext';
+import { useVersion } from '@/contexts/VersionContext';
 import { toast } from 'sonner';
 import Header from '@/components/Header';
 import QRScanner from '@/components/QRScanner';
@@ -14,14 +15,20 @@ import { MessageCircle, FileEdit } from 'lucide-react';
 
 const Index = () => {
   const { addItem, extraInfo, setExtraInfo } = useCart();
+  const { activeVersion } = useVersion();
 
   const handleQRScan = useCallback(async (code: string) => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('products')
         .select('*')
-        .eq('code', code)
-        .maybeSingle();
+        .eq('code', code);
+      
+      if (activeVersion) {
+        query = query.eq('version_id', activeVersion.id);
+      }
+      
+      const { data, error } = await query.maybeSingle();
 
       if (error) throw error;
 
@@ -42,7 +49,7 @@ const Index = () => {
       console.error('QR scan error:', err);
       toast.error('حدث خطأ في قراءة المنتج');
     }
-  }, [addItem]);
+  }, [addItem, activeVersion]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-baby-blue-light via-background to-baby-pink-light">
