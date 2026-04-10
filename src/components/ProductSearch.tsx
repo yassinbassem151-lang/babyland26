@@ -24,6 +24,7 @@ const ProductSearch = () => {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(false);
   const { addItem } = useCart();
+  const { activeVersion } = useVersion();
 
   const handleSearch = async () => {
     if (!searchCode.trim()) {
@@ -33,11 +34,16 @@ const ProductSearch = () => {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('products')
         .select('*')
-        .eq('code', searchCode.trim())
-        .maybeSingle();
+        .eq('code', searchCode.trim());
+      
+      if (activeVersion) {
+        query = query.eq('version_id', activeVersion.id);
+      }
+      
+      const { data, error } = await query.maybeSingle();
 
       if (error) throw error;
 
