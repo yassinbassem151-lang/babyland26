@@ -369,6 +369,42 @@ export type Database = {
           },
         ]
       }
+      shipping_details: {
+        Row: {
+          created_at: string
+          customer_name: string
+          id: string
+          phone: string
+          shipping_company: string
+          shipping_data: string
+          shop_name: string | null
+          updated_at: string
+          version_id: string
+        }
+        Insert: {
+          created_at?: string
+          customer_name: string
+          id?: string
+          phone: string
+          shipping_company: string
+          shipping_data: string
+          shop_name?: string | null
+          updated_at?: string
+          version_id: string
+        }
+        Update: {
+          created_at?: string
+          customer_name?: string
+          id?: string
+          phone?: string
+          shipping_company?: string
+          shipping_data?: string
+          shop_name?: string | null
+          updated_at?: string
+          version_id?: string
+        }
+        Relationships: []
+      }
       staff_members: {
         Row: {
           created_at: string
