@@ -54,13 +54,19 @@ const calculateItemTotal = (item: OrderItem): number => {
   return item.price * item.quantity * multiplier;
 };
 
+const statusMeta: Record<string, { label: string; cls: string }> = {
+  finished: { label: 'منتهي', cls: 'bg-green-100 text-green-800' },
+  partial: { label: 'جزئي', cls: 'bg-blue-100 text-blue-800' },
+  unfinished: { label: 'غير منتهي', cls: 'bg-amber-100 text-amber-800' },
+};
+
 const OrdersProgress = () => {
   const { activeVersion } = useVersion();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'unfinished' | 'finished'>('unfinished');
+  const [filter, setFilter] = useState<'all' | 'unfinished' | 'partial' | 'finished'>('unfinished');
   const [search, setSearch] = useState('');
 
   useEffect(() => {
@@ -120,8 +126,10 @@ const OrdersProgress = () => {
   };
 
   const syncProgressStatus = async (orderId: string, items: OrderItem[]) => {
-    const allDone = items.length > 0 && items.every(i => i.fulfilled);
-    const newStatus = allDone ? 'finished' : 'unfinished';
+    const fulfilledCount = items.filter(i => i.fulfilled).length;
+    let newStatus: 'finished' | 'unfinished' | 'partial' = 'unfinished';
+    if (items.length > 0 && fulfilledCount === items.length) newStatus = 'finished';
+    else if (fulfilledCount > 0) newStatus = 'partial';
     await supabase.from('orders').update({ progress_status: newStatus } as any).eq('id', orderId);
     setSelectedOrder(prev => prev ? { ...prev, progress_status: newStatus } : prev);
     loadOrders();
@@ -262,6 +270,7 @@ ${order.deposit_amount > 0 ? `<p>العربون (${order.deposit_method || ''}):
       <Tabs value={filter} onValueChange={(v) => setFilter(v as any)}>
         <TabsList>
           <TabsTrigger value="unfinished">غير منتهية</TabsTrigger>
+          <TabsTrigger value="partial">جزئية</TabsTrigger>
           <TabsTrigger value="finished">منتهية</TabsTrigger>
           <TabsTrigger value="all">الكل</TabsTrigger>
         </TabsList>
@@ -286,8 +295,8 @@ ${order.deposit_amount > 0 ? `<p>العربون (${order.deposit_method || ''}):
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge className={o.progress_status === 'finished' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}>
-                    {o.progress_status === 'finished' ? 'منتهي' : 'غير منتهي'}
+                  <Badge className={(statusMeta[o.progress_status] || statusMeta.unfinished).cls}>
+                    {(statusMeta[o.progress_status] || statusMeta.unfinished).label}
                   </Badge>
                   <Button size="sm" variant="outline" onClick={() => handleOpen(o)}>
                     <Eye className="h-4 w-4 ml-1" /> فتح
@@ -316,8 +325,8 @@ ${order.deposit_amount > 0 ? `<p>العربون (${order.deposit_method || ''}):
                 <Button size="sm" variant="outline" onClick={printFulfilledInvoice}>
                   <Printer className="h-4 w-4 ml-1" /> طباعة فاتورة المؤكد
                 </Button>
-                <Badge className={selectedOrder.progress_status === 'finished' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}>
-                  {selectedOrder.progress_status === 'finished' ? 'منتهي' : 'غير منتهي'}
+                <Badge className={(statusMeta[selectedOrder.progress_status] || statusMeta.unfinished).cls}>
+                  {(statusMeta[selectedOrder.progress_status] || statusMeta.unfinished).label}
                 </Badge>
               </div>
 
