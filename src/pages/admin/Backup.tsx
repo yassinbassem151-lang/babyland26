@@ -82,7 +82,7 @@ const fetchAllRows = async (
   let from = 0;
   const rows: any[] = [];
   while (true) {
-    let q = supabase.from(table).select('*').range(from, from + pageSize - 1);
+    let q: any = supabase.from(table as any).select('*').range(from, from + pageSize - 1);
     if (filter) q = q.eq(filter.column, filter.value);
     const { data, error } = await q;
     if (error) throw error;
