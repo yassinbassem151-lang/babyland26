@@ -168,6 +168,7 @@ export type Database = {
       order_items: {
         Row: {
           created_at: string
+          fulfilled: boolean
           id: string
           order_id: string
           price: number
@@ -180,6 +181,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          fulfilled?: boolean
           id?: string
           order_id: string
           price: number
@@ -192,6 +194,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          fulfilled?: boolean
           id?: string
           order_id?: string
           price?: number
@@ -239,6 +242,7 @@ export type Database = {
           id: string
           order_number: number
           phone: string
+          progress_status: string
           shipping_company: string | null
           shop_name: string | null
           staff_member_id: string | null
@@ -261,6 +265,7 @@ export type Database = {
           id?: string
           order_number?: number
           phone: string
+          progress_status?: string
           shipping_company?: string | null
           shop_name?: string | null
           staff_member_id?: string | null
@@ -283,6 +288,7 @@ export type Database = {
           id?: string
           order_number?: number
           phone?: string
+          progress_status?: string
           shipping_company?: string | null
           shop_name?: string | null
           staff_member_id?: string | null
