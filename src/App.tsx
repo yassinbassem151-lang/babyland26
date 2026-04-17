@@ -22,6 +22,7 @@ import StaffManagement from "./pages/admin/StaffManagement";
 import ProductReport from "./pages/admin/ProductReport";
 import OrdersProgress from "./pages/admin/OrdersProgress";
 import ShippingDetails from "./pages/admin/ShippingDetails";
+import Backup from "./pages/admin/Backup";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -52,6 +53,7 @@ const App = () => (
                 <Route path="orders-progress" element={<OrdersProgress />} />
                 <Route path="shipping-details" element={<ShippingDetails />} />
                 <Route path="staff" element={<StaffManagement />} />
+                <Route path="backup" element={<Backup />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
