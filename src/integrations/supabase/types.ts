@@ -374,6 +374,7 @@ export type Database = {
           created_at: string
           customer_name: string
           id: string
+          is_correct: boolean
           phone: string
           shipping_company: string
           shipping_data: string
@@ -385,6 +386,7 @@ export type Database = {
           created_at?: string
           customer_name: string
           id?: string
+          is_correct?: boolean
           phone: string
           shipping_company: string
           shipping_data: string
@@ -396,6 +398,7 @@ export type Database = {
           created_at?: string
           customer_name?: string
           id?: string
+          is_correct?: boolean
           phone?: string
           shipping_company?: string
           shipping_data?: string

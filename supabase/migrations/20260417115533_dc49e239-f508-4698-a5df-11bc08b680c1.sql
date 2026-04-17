@@ -1,0 +1,1 @@
+ALTER TABLE public.shipping_details ADD COLUMN IF NOT EXISTS is_correct boolean NOT NULL DEFAULT false;

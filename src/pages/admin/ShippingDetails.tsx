@@ -7,8 +7,10 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, Pencil, Trash2, Truck } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Truck, Check, FileSpreadsheet } from 'lucide-react';
 import { toast } from 'sonner';
+import * as XLSX from 'xlsx';
+import { cn } from '@/lib/utils';
 
 interface ShippingDetail {
   id: string;
@@ -17,6 +19,7 @@ interface ShippingDetail {
   phone: string;
   shipping_company: string;
   shipping_data: string;
+  is_correct: boolean;
   created_at: string;
 }
 
@@ -41,7 +44,7 @@ const ShippingDetails = () => {
       .eq('version_id', activeVersion.id)
       .order('created_at', { ascending: false });
     if (error) toast.error('فشل تحميل البيانات');
-    else setItems(data || []);
+    else setItems((data as ShippingDetail[]) || []);
     setLoading(false);
   };
 
@@ -113,6 +116,50 @@ const ShippingDetails = () => {
     load();
   };
 
+  const toggleCorrect = async (item: ShippingDetail) => {
+    const newVal = !item.is_correct;
+    // Optimistic update
+    setItems(prev => prev.map(i => i.id === item.id ? { ...i, is_correct: newVal } : i));
+    const { error } = await supabase
+      .from('shipping_details')
+      .update({ is_correct: newVal })
+      .eq('id', item.id);
+    if (error) {
+      toast.error('فشل التحديث');
+      setItems(prev => prev.map(i => i.id === item.id ? { ...i, is_correct: !newVal } : i));
+      return;
+    }
+    toast.success(newVal ? 'تم التأشير كصحيح' : 'تم إلغاء التأشير');
+  };
+
+  const exportExcel = () => {
+    if (filtered.length === 0) {
+      toast.error('لا توجد بيانات للتصدير');
+      return;
+    }
+    const rows = filtered.map((i, idx) => ({
+      '#': idx + 1,
+      'اسم العميل': i.customer_name,
+      'اسم المحل': i.shop_name || '',
+      'رقم الهاتف': i.phone,
+      'شركة الشحن': i.shipping_company,
+      'بيانات الشحن': i.shipping_data,
+      'الحالة': i.is_correct ? 'صحيح' : 'غير مؤكد',
+      'تاريخ الإضافة': new Date(i.created_at).toLocaleString('ar-EG'),
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [
+      { wch: 5 }, { wch: 20 }, { wch: 20 }, { wch: 15 },
+      { wch: 18 }, { wch: 25 }, { wch: 12 }, { wch: 22 },
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'تفاصيل الشحن');
+    const versionName = activeVersion?.name || 'all';
+    const date = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `shipping-details-${versionName}-${date}.xlsx`);
+    toast.success('تم تصدير الملف');
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -120,9 +167,14 @@ const ShippingDetails = () => {
           <Truck className="h-7 w-7 text-primary" />
           <h1 className="text-2xl font-bold">تفاصيل الشحن</h1>
         </div>
-        <Button onClick={openNew} className="gap-2">
-          <Plus className="h-4 w-4" /> إضافة شحنة
-        </Button>
+        <div className="flex gap-2 flex-wrap">
+          <Button onClick={exportExcel} variant="outline" className="gap-2">
+            <FileSpreadsheet className="h-4 w-4" /> تصدير Excel
+          </Button>
+          <Button onClick={openNew} className="gap-2">
+            <Plus className="h-4 w-4" /> إضافة شحنة
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -161,7 +213,10 @@ const ShippingDetails = () => {
               ) : filtered.length === 0 ? (
                 <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">لا توجد بيانات</TableCell></TableRow>
               ) : filtered.map(item => (
-                <TableRow key={item.id}>
+                <TableRow
+                  key={item.id}
+                  className={cn(item.is_correct && 'bg-green-500/10 hover:bg-green-500/15')}
+                >
                   <TableCell className="font-medium">{item.customer_name}</TableCell>
                   <TableCell>{item.shop_name || '-'}</TableCell>
                   <TableCell dir="ltr" className="text-right">{item.phone}</TableCell>
@@ -169,6 +224,17 @@ const ShippingDetails = () => {
                   <TableCell>{item.shipping_data}</TableCell>
                   <TableCell>
                     <div className="flex gap-2">
+                      <Button
+                        size="icon"
+                        variant={item.is_correct ? 'default' : 'outline'}
+                        onClick={() => toggleCorrect(item)}
+                        className={cn(
+                          item.is_correct && 'bg-green-600 hover:bg-green-700 text-white border-green-600',
+                        )}
+                        title={item.is_correct ? 'تم التأشير كصحيح - اضغط للإلغاء' : 'تأشير كصحيح'}
+                      >
+                        <Check className="h-4 w-4" />
+                      </Button>
                       <Button size="icon" variant="ghost" onClick={() => openEdit(item)}>
                         <Pencil className="h-4 w-4" />
                       </Button>
