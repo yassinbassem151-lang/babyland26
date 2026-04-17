@@ -54,6 +54,12 @@ const calculateItemTotal = (item: OrderItem): number => {
   return item.price * item.quantity * multiplier;
 };
 
+const statusMeta: Record<string, { label: string; cls: string }> = {
+  finished: { label: 'منتهي', cls: 'bg-green-100 text-green-800' },
+  partial: { label: 'جزئي', cls: 'bg-blue-100 text-blue-800' },
+  unfinished: { label: 'غير منتهي', cls: 'bg-amber-100 text-amber-800' },
+};
+
 const OrdersProgress = () => {
   const { activeVersion } = useVersion();
   const [orders, setOrders] = useState<Order[]>([]);
