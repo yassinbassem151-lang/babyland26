@@ -13,8 +13,6 @@ import { toast } from 'sonner';
 import logoImage from '@/assets/baby-land-logo.jpg';
 import { useVersion } from '@/contexts/VersionContext';
 
-type ItemStatus = 'pending' | 'fulfilled' | 'cancelled';
-
 interface OrderItem {
   id: string;
   product_id: string;
@@ -24,14 +22,8 @@ interface OrderItem {
   price: number;
   quantity: number;
   fulfilled: boolean;
+  cancelled: boolean;
 }
-
-const getItemStatus = (item: OrderItem): ItemStatus => {
-  if (item.fulfilled) return 'fulfilled';
-  // We use product_description suffix " [CANCELLED]" as a marker since we can't add a column without migration approval... 
-  // Instead use a Map kept in component state. See cancelledIds below.
-  return 'pending';
-};
 
 interface Order {
   id: string;
@@ -79,6 +71,8 @@ const OrdersProgress = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [filter, setFilter] = useState<'all' | 'unfinished' | 'partial' | 'finished'>('unfinished');
   const [search, setSearch] = useState('');
+  const [printDialogOpen, setPrintDialogOpen] = useState(false);
+  const [includeDeposit, setIncludeDeposit] = useState(true);
 
   useEffect(() => {
     if (!activeVersion) return;
@@ -118,29 +112,44 @@ const OrdersProgress = () => {
     setDialogOpen(true);
   };
 
-  const toggleItemFulfilled = async (item: OrderItem) => {
+  const updateItemFlags = async (item: OrderItem, patch: Partial<Pick<OrderItem, 'fulfilled' | 'cancelled'>>) => {
     if (!selectedOrder) return;
-    const newVal = !item.fulfilled;
     const { error } = await supabase
       .from('order_items')
-      .update({ fulfilled: newVal } as any)
+      .update(patch as any)
       .eq('id', item.id);
     if (error) {
       toast.error('فشل التحديث');
       return;
     }
     const updatedItems = selectedOrder.items!.map(i =>
-      i.id === item.id ? { ...i, fulfilled: newVal } : i
+      i.id === item.id ? { ...i, ...patch } : i
     );
     setSelectedOrder({ ...selectedOrder, items: updatedItems });
     await syncProgressStatus(selectedOrder.id, updatedItems);
   };
 
+  const toggleItemFulfilled = (item: OrderItem) => {
+    const newFulfilled = !item.fulfilled;
+    updateItemFlags(item, { fulfilled: newFulfilled, cancelled: newFulfilled ? false : item.cancelled });
+  };
+
+  const toggleItemCancelled = (item: OrderItem) => {
+    const newCancelled = !item.cancelled;
+    updateItemFlags(item, { cancelled: newCancelled, fulfilled: newCancelled ? false : item.fulfilled });
+  };
+
   const syncProgressStatus = async (orderId: string, items: OrderItem[]) => {
+    // An item is "resolved" if it is fulfilled OR cancelled.
+    // Order is finished only if every item is resolved AND at least one is fulfilled.
     const fulfilledCount = items.filter(i => i.fulfilled).length;
+    const resolvedCount = items.filter(i => i.fulfilled || i.cancelled).length;
     let newStatus: 'finished' | 'unfinished' | 'partial' = 'unfinished';
-    if (items.length > 0 && fulfilledCount === items.length) newStatus = 'finished';
-    else if (fulfilledCount > 0) newStatus = 'partial';
+    if (items.length > 0 && resolvedCount === items.length && fulfilledCount > 0) {
+      newStatus = 'finished';
+    } else if (fulfilledCount > 0 || resolvedCount > 0) {
+      newStatus = 'partial';
+    }
     await supabase.from('orders').update({ progress_status: newStatus } as any).eq('id', orderId);
     setSelectedOrder(prev => prev ? { ...prev, progress_status: newStatus } : prev);
     loadOrders();
@@ -148,9 +157,10 @@ const OrdersProgress = () => {
 
   const markAllFulfilled = async () => {
     if (!selectedOrder?.items) return;
-    const ids = selectedOrder.items.map(i => i.id);
+    const ids = selectedOrder.items.filter(i => !i.cancelled).map(i => i.id);
+    if (ids.length === 0) return;
     await supabase.from('order_items').update({ fulfilled: true } as any).in('id', ids);
-    const updated = selectedOrder.items.map(i => ({ ...i, fulfilled: true }));
+    const updated = selectedOrder.items.map(i => i.cancelled ? i : { ...i, fulfilled: true });
     setSelectedOrder({ ...selectedOrder, items: updated });
     await syncProgressStatus(selectedOrder.id, updated);
     toast.success('تم تأكيد كل المنتجات');
@@ -172,17 +182,27 @@ const OrdersProgress = () => {
       img.src = logoImage;
     });
 
-  const printFulfilledInvoice = async () => {
+  const openPrintDialog = () => {
     if (!selectedOrder?.items) return;
     const fulfilledItems = selectedOrder.items.filter(i => i.fulfilled);
     if (fulfilledItems.length === 0) {
       toast.error('لا توجد منتجات مؤكدة للطباعة');
       return;
     }
+    setIncludeDeposit(true);
+    setPrintDialogOpen(true);
+  };
+
+  const printFulfilledInvoice = async () => {
+    if (!selectedOrder?.items) return;
+    const fulfilledItems = selectedOrder.items.filter(i => i.fulfilled);
+    if (fulfilledItems.length === 0) return;
     const order = selectedOrder;
+    setPrintDialogOpen(false);
     const logoBase64 = await getLogoBase64();
     const subtotal = fulfilledItems.reduce((s, i) => s + calculateItemTotal(i), 0);
-    const total = subtotal - (order.deposit_amount || 0);
+    const depositToApply = includeDeposit ? (order.deposit_amount || 0) : 0;
+    const total = subtotal - depositToApply;
 
     const html = `<!DOCTYPE html>
 <html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>فاتورة ${order.order_number}</title>
@@ -224,7 +244,7 @@ ${[...fulfilledItems].sort((a,b)=>a.product_code.localeCompare(b.product_code,un
 </tbody></table>
 <div class="totals">
 <p>الإجمالي الفرعي: ${subtotal.toFixed(2)} ج.م</p>
-${order.deposit_amount > 0 ? `<p>العربون (${order.deposit_method || ''}): -${order.deposit_amount.toFixed(2)} ج.م</p>` : ''}
+${depositToApply > 0 ? `<p>العربون (${order.deposit_method || ''}): -${depositToApply.toFixed(2)} ج.م</p>` : ''}
 <p class="total">المطلوب: ${total.toFixed(2)} ج.م</p>
 </div>
 </body></html>`;
@@ -333,7 +353,7 @@ ${order.deposit_amount > 0 ? `<p>العربون (${order.deposit_method || ''}):
                 <Button size="sm" onClick={markAllFulfilled}>
                   <CheckCircle2 className="h-4 w-4 ml-1" /> تأكيد الكل
                 </Button>
-                <Button size="sm" variant="outline" onClick={printFulfilledInvoice}>
+                <Button size="sm" variant="outline" onClick={openPrintDialog}>
                   <Printer className="h-4 w-4 ml-1" /> طباعة فاتورة المؤكد
                 </Button>
                 <Badge className={(statusMeta[selectedOrder.progress_status] || statusMeta.unfinished).cls}>
@@ -349,28 +369,45 @@ ${order.deposit_amount > 0 ? `<p>العربون (${order.deposit_method || ''}):
                       <th className="p-2 text-right">المنتج</th>
                       <th className="p-2 text-right">الكمية</th>
                       <th className="p-2 text-right">الإجمالي</th>
-                      <th className="p-2 text-center">تأكيد</th>
+                      <th className="p-2 text-center">الحالة</th>
                     </tr>
                   </thead>
                   <tbody>
                     {selectedOrder.items?.map((item) => {
                       const mult = getDescriptionMultiplier(item.product_description);
                       const dispQty = mult > 1 ? item.quantity * mult : item.quantity;
+                      const rowCls = item.fulfilled
+                        ? 'bg-green-50'
+                        : item.cancelled
+                        ? 'bg-red-50 line-through text-muted-foreground'
+                        : '';
                       return (
-                        <tr key={item.id} className={`border-t ${item.fulfilled ? 'bg-green-50' : ''}`}>
+                        <tr key={item.id} className={`border-t ${rowCls}`}>
                           <td className="p-2">{item.product_code}</td>
                           <td className="p-2">{item.product_name}</td>
                           <td className="p-2">{dispQty}</td>
                           <td className="p-2">{calculateItemTotal(item).toFixed(2)} ج.م</td>
-                          <td className="p-2 text-center">
-                            <Button
-                              size="sm"
-                              variant={item.fulfilled ? 'default' : 'outline'}
-                              onClick={() => toggleItemFulfilled(item)}
-                              className={item.fulfilled ? 'bg-green-600 hover:bg-green-700' : ''}
-                            >
-                              {item.fulfilled ? <CheckCircle2 className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
-                            </Button>
+                          <td className="p-2">
+                            <div className="flex items-center justify-center gap-1">
+                              <Button
+                                size="sm"
+                                variant={item.fulfilled ? 'default' : 'outline'}
+                                onClick={() => toggleItemFulfilled(item)}
+                                className={item.fulfilled ? 'bg-green-600 hover:bg-green-700' : ''}
+                                title="تأكيد"
+                              >
+                                {item.fulfilled ? <CheckCircle2 className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant={item.cancelled ? 'default' : 'outline'}
+                                onClick={() => toggleItemCancelled(item)}
+                                className={item.cancelled ? 'bg-red-600 hover:bg-red-700' : ''}
+                                title="إلغاء"
+                              >
+                                <XCircle className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -386,6 +423,41 @@ ${order.deposit_amount > 0 ? `<p>العربون (${order.deposit_method || ''}):
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={printDialogOpen} onOpenChange={setPrintDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>إعدادات الطباعة</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {selectedOrder && selectedOrder.deposit_amount > 0 ? (
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div>
+                  <Label htmlFor="include-deposit" className="font-semibold">
+                    خصم العربون من الإجمالي
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    العربون: {selectedOrder.deposit_amount.toFixed(2)} ج.م
+                  </p>
+                </div>
+                <Switch
+                  id="include-deposit"
+                  checked={includeDeposit}
+                  onCheckedChange={setIncludeDeposit}
+                />
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">لا يوجد عربون لهذا الطلب.</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPrintDialogOpen(false)}>إلغاء</Button>
+            <Button onClick={printFulfilledInvoice}>
+              <Printer className="h-4 w-4 ml-1" /> طباعة
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
