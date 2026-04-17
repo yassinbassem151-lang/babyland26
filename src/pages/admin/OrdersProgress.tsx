@@ -1,15 +1,19 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle2, Circle, Eye, Printer, Search } from 'lucide-react';
+import { CheckCircle2, Circle, Eye, Printer, Search, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import logoImage from '@/assets/baby-land-logo.jpg';
 import { useVersion } from '@/contexts/VersionContext';
+
+type ItemStatus = 'pending' | 'fulfilled' | 'cancelled';
 
 interface OrderItem {
   id: string;
@@ -21,6 +25,13 @@ interface OrderItem {
   quantity: number;
   fulfilled: boolean;
 }
+
+const getItemStatus = (item: OrderItem): ItemStatus => {
+  if (item.fulfilled) return 'fulfilled';
+  // We use product_description suffix " [CANCELLED]" as a marker since we can't add a column without migration approval... 
+  // Instead use a Map kept in component state. See cancelledIds below.
+  return 'pending';
+};
 
 interface Order {
   id: string;
