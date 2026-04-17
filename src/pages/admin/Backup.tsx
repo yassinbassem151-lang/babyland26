@@ -415,14 +415,14 @@ const Backup = () => {
         // (so a single-version restore doesn't wipe other versions).
         if (isVersioned && versionIdsInRestore.size > 0) {
           const ids = Array.from(versionIdsInRestore);
-          const { error: deleteError } = await supabase
+          const { error: deleteError } = await (supabase as any)
             .from(table)
             .delete()
             .in('version_id', ids);
           if (deleteError) throw new Error(`فشل حذف بيانات ${table}: ${deleteError.message}`);
         } else {
           // Global tables / versions table: full wipe
-          const { error: deleteError } = await supabase
+          const { error: deleteError } = await (supabase as any)
             .from(table)
             .delete()
             .not('id', 'is', null);
@@ -434,7 +434,7 @@ const Backup = () => {
         const batchSize = 200;
         for (let i = 0; i < rows.length; i += batchSize) {
           const batch = rows.slice(i, i + batchSize);
-          const { error: insertError } = await supabase.from(table).insert(batch as any);
+          const { error: insertError } = await (supabase as any).from(table).insert(batch);
           if (insertError) throw new Error(`فشل استعادة ${table} (دفعة ${i}): ${insertError.message}`);
         }
       }
