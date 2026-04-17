@@ -264,6 +264,7 @@ ${order.deposit_amount > 0 ? `<p>العربون (${order.deposit_method || ''}):
       <Tabs value={filter} onValueChange={(v) => setFilter(v as any)}>
         <TabsList>
           <TabsTrigger value="unfinished">غير منتهية</TabsTrigger>
+          <TabsTrigger value="partial">جزئية</TabsTrigger>
           <TabsTrigger value="finished">منتهية</TabsTrigger>
           <TabsTrigger value="all">الكل</TabsTrigger>
         </TabsList>
@@ -288,8 +289,8 @@ ${order.deposit_amount > 0 ? `<p>العربون (${order.deposit_method || ''}):
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge className={o.progress_status === 'finished' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}>
-                    {o.progress_status === 'finished' ? 'منتهي' : 'غير منتهي'}
+                  <Badge className={(statusMeta[o.progress_status] || statusMeta.unfinished).cls}>
+                    {(statusMeta[o.progress_status] || statusMeta.unfinished).label}
                   </Badge>
                   <Button size="sm" variant="outline" onClick={() => handleOpen(o)}>
                     <Eye className="h-4 w-4 ml-1" /> فتح
@@ -318,8 +319,8 @@ ${order.deposit_amount > 0 ? `<p>العربون (${order.deposit_method || ''}):
                 <Button size="sm" variant="outline" onClick={printFulfilledInvoice}>
                   <Printer className="h-4 w-4 ml-1" /> طباعة فاتورة المؤكد
                 </Button>
-                <Badge className={selectedOrder.progress_status === 'finished' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}>
-                  {selectedOrder.progress_status === 'finished' ? 'منتهي' : 'غير منتهي'}
+                <Badge className={(statusMeta[selectedOrder.progress_status] || statusMeta.unfinished).cls}>
+                  {(statusMeta[selectedOrder.progress_status] || statusMeta.unfinished).label}
                 </Badge>
               </div>
 
