@@ -60,7 +60,7 @@ const OrdersProgress = () => {
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'unfinished' | 'finished'>('unfinished');
+  const [filter, setFilter] = useState<'all' | 'unfinished' | 'partial' | 'finished'>('unfinished');
   const [search, setSearch] = useState('');
 
   useEffect(() => {
@@ -120,8 +120,10 @@ const OrdersProgress = () => {
   };
 
   const syncProgressStatus = async (orderId: string, items: OrderItem[]) => {
-    const allDone = items.length > 0 && items.every(i => i.fulfilled);
-    const newStatus = allDone ? 'finished' : 'unfinished';
+    const fulfilledCount = items.filter(i => i.fulfilled).length;
+    let newStatus: 'finished' | 'unfinished' | 'partial' = 'unfinished';
+    if (items.length > 0 && fulfilledCount === items.length) newStatus = 'finished';
+    else if (fulfilledCount > 0) newStatus = 'partial';
     await supabase.from('orders').update({ progress_status: newStatus } as any).eq('id', orderId);
     setSelectedOrder(prev => prev ? { ...prev, progress_status: newStatus } : prev);
     loadOrders();
