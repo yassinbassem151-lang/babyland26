@@ -167,6 +167,7 @@ export type Database = {
       }
       order_items: {
         Row: {
+          cancelled: boolean
           created_at: string
           fulfilled: boolean
           id: string
@@ -180,6 +181,7 @@ export type Database = {
           version_id: string
         }
         Insert: {
+          cancelled?: boolean
           created_at?: string
           fulfilled?: boolean
           id?: string
@@ -193,6 +195,7 @@ export type Database = {
           version_id: string
         }
         Update: {
+          cancelled?: boolean
           created_at?: string
           fulfilled?: boolean
           id?: string
