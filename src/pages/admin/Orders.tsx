@@ -418,6 +418,89 @@ const Orders = () => {
     }
   };
 
+  const handleAddRefundToOrder = async () => {
+    if (!selectedOrder || !addRefundCode.trim() || !activeVersion) return;
+
+    const { data: product, error: productError } = await supabase
+      .from('products')
+      .select('*')
+      .eq('code', addRefundCode.trim())
+      .eq('version_id', activeVersion.id)
+      .maybeSingle();
+
+    if (productError || !product) {
+      toast.error('المنتج غير موجود');
+      return;
+    }
+
+    const { error } = await supabase.from('order_refunds').insert({
+      order_id: selectedOrder.id,
+      product_id: product.id,
+      product_code: product.code,
+      product_name: product.name,
+      product_description: product.description,
+      price: product.price,
+      quantity: 1,
+      version_id: activeVersion.id,
+    });
+
+    if (error) {
+      toast.error('فشل في إضافة الاسترجاع');
+      return;
+    }
+
+    toast.success('تم إضافة منتج الاسترجاع');
+    const refunds = await loadOrderRefunds(selectedOrder.id);
+    const items = selectedOrder.items || [];
+    const newSubtotal = items.reduce((sum, item) => sum + calculateItemTotal(item), 0);
+    const refundTotal = refunds.reduce((sum, r) => sum + calculateItemTotal(r as unknown as OrderItem), 0);
+    await supabase.from('orders').update({
+      subtotal: newSubtotal,
+      total: newSubtotal - refundTotal - selectedOrder.deposit_amount,
+    }).eq('id', selectedOrder.id);
+    setSelectedOrder({ ...selectedOrder, refunds });
+    setAddRefundCode('');
+    loadOrders();
+  };
+
+  const handleUpdateRefundQuantity = async (refundId: string, quantity: number) => {
+    if (!selectedOrder || quantity < 1) return;
+    const { error } = await supabase.from('order_refunds').update({ quantity }).eq('id', refundId);
+    if (error) {
+      toast.error('فشل في تحديث الكمية');
+      return;
+    }
+    const refunds = await loadOrderRefunds(selectedOrder.id);
+    const items = selectedOrder.items || [];
+    const newSubtotal = items.reduce((sum, item) => sum + calculateItemTotal(item), 0);
+    const refundTotal = refunds.reduce((sum, r) => sum + calculateItemTotal(r as unknown as OrderItem), 0);
+    await supabase.from('orders').update({
+      subtotal: newSubtotal,
+      total: newSubtotal - refundTotal - selectedOrder.deposit_amount,
+    }).eq('id', selectedOrder.id);
+    setSelectedOrder({ ...selectedOrder, refunds });
+    loadOrders();
+  };
+
+  const handleRemoveRefund = async (refundId: string) => {
+    if (!selectedOrder) return;
+    const { error } = await supabase.from('order_refunds').delete().eq('id', refundId);
+    if (error) {
+      toast.error('فشل في حذف الاسترجاع');
+      return;
+    }
+    const refunds = await loadOrderRefunds(selectedOrder.id);
+    const items = selectedOrder.items || [];
+    const newSubtotal = items.reduce((sum, item) => sum + calculateItemTotal(item), 0);
+    const refundTotal = refunds.reduce((sum, r) => sum + calculateItemTotal(r as unknown as OrderItem), 0);
+    await supabase.from('orders').update({
+      subtotal: newSubtotal,
+      total: newSubtotal - refundTotal - selectedOrder.deposit_amount,
+    }).eq('id', selectedOrder.id);
+    setSelectedOrder({ ...selectedOrder, refunds });
+    loadOrders();
+  };
+
   const getLogoBase64 = (): Promise<string> => {
     return new Promise((resolve) => {
       const img = new Image();
