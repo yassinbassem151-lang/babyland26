@@ -232,6 +232,60 @@ export type Database = {
           },
         ]
       }
+      order_returns: {
+        Row: {
+          address: string | null
+          created_at: string
+          customer_name: string
+          id: string
+          notes: string | null
+          phone: string
+          product_code: string
+          product_description: string | null
+          product_name: string
+          quantity: number
+          shop_name: string | null
+          total_amount: number
+          unit_price: number
+          updated_at: string
+          version_id: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          customer_name: string
+          id?: string
+          notes?: string | null
+          phone: string
+          product_code: string
+          product_description?: string | null
+          product_name: string
+          quantity?: number
+          shop_name?: string | null
+          total_amount?: number
+          unit_price?: number
+          updated_at?: string
+          version_id: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          customer_name?: string
+          id?: string
+          notes?: string | null
+          phone?: string
+          product_code?: string
+          product_description?: string | null
+          product_name?: string
+          quantity?: number
+          shop_name?: string | null
+          total_amount?: number
+          unit_price?: number
+          updated_at?: string
+          version_id?: string
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           address: string | null
