@@ -151,15 +151,23 @@ const Orders = () => {
     return data || [];
   };
 
+  const loadOrderRefunds = async (orderId: string): Promise<OrderRefund[]> => {
+    const { data } = await supabase
+      .from('order_refunds')
+      .select('*')
+      .eq('order_id', orderId);
+    return (data || []) as OrderRefund[];
+  };
+
   const handleView = async (order: Order) => {
-    const items = await loadOrderItems(order.id);
-    setSelectedOrder({ ...order, items });
+    const [items, refunds] = await Promise.all([loadOrderItems(order.id), loadOrderRefunds(order.id)]);
+    setSelectedOrder({ ...order, items, refunds });
     setViewDialogOpen(true);
   };
 
   const handleEdit = async (order: Order) => {
-    const items = await loadOrderItems(order.id);
-    setSelectedOrder({ ...order, items });
+    const [items, refunds] = await Promise.all([loadOrderItems(order.id), loadOrderRefunds(order.id)]);
+    setSelectedOrder({ ...order, items, refunds });
     setEditDialogOpen(true);
   };
 
