@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link, Outlet, useLocation } from 'react-router-dom';
-import { Package, ShoppingCart, Users, BarChart3, LogOut, Wallet, SearchCode, FileText, ImagePlus, Menu, X, Bell, UserCog, ClipboardList, Settings, ListChecks, Truck, DatabaseBackup } from 'lucide-react';
+import { Package, ShoppingCart, Users, BarChart3, LogOut, Wallet, SearchCode, FileText, ImagePlus, Menu, X, Bell, UserCog, ClipboardList, Settings, ListChecks, Truck, DatabaseBackup, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import babylandLogo from '@/assets/babyland-logo.jpg';
 import { VersionProvider } from '@/contexts/VersionContext';
@@ -14,6 +14,7 @@ const allNavItems = [
   { path: '/admin/dashboard/orders', label: 'الطلبات', icon: ShoppingCart, permission: 'orders' },
   { path: '/admin/dashboard/orders-progress', label: 'تقدم الطلبات', icon: ListChecks, permission: 'orders_progress' },
   { path: '/admin/dashboard/shipping-details', label: 'تفاصيل الشحن', icon: Truck, permission: 'shipping_details' },
+  { path: '/admin/dashboard/orders-return', label: 'مرتجعات الطلبات', icon: Undo2, permission: 'orders_return' },
   { path: '/admin/dashboard/customers', label: 'العملاء', icon: Users, permission: 'customers' },
   { path: '/admin/dashboard/deposits', label: 'العربون', icon: Wallet, permission: 'deposits' },
   { path: '/admin/dashboard/search-by-code', label: 'البحث بالكود', icon: SearchCode, permission: 'search' },
@@ -31,6 +32,7 @@ export const PERMISSION_LABELS: Record<string, string> = {
   orders: 'الطلبات',
   orders_progress: 'تقدم الطلبات',
   shipping_details: 'تفاصيل الشحن',
+  orders_return: 'مرتجعات الطلبات',
   customers: 'العملاء',
   deposits: 'العربون',
   search: 'البحث بالكود',
