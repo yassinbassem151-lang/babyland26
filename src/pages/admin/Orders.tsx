@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Eye, Edit2, Trash2, FileText, Search, ShoppingCart, Plus, Copy, Printer } from 'lucide-react';
+import { Eye, Edit2, Trash2, FileText, Search, ShoppingCart, Plus, Copy, Printer, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,6 +14,16 @@ import { Checkbox } from '@/components/ui/checkbox';
 interface OrderItem {
   id: string;
   product_id: string;
+  product_code: string;
+  product_name: string;
+  product_description: string | null;
+  price: number;
+  quantity: number;
+}
+
+interface OrderRefund {
+  id: string;
+  product_id: string | null;
   product_code: string;
   product_name: string;
   product_description: string | null;
@@ -40,6 +50,7 @@ interface Order {
   staff_member_id: string | null;
   staff_member_name: string | null;
   items?: OrderItem[];
+  refunds?: OrderRefund[];
 }
 
 const statusLabels: Record<string, string> = {
@@ -84,6 +95,7 @@ const Orders = () => {
   const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
   const [searchCode, setSearchCode] = useState('');
   const [addProductCode, setAddProductCode] = useState('');
+  const [addRefundCode, setAddRefundCode] = useState('');
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
   const [duplicateCustomer, setDuplicateCustomer] = useState({
     customer_name: '',
@@ -139,15 +151,23 @@ const Orders = () => {
     return data || [];
   };
 
+  const loadOrderRefunds = async (orderId: string): Promise<OrderRefund[]> => {
+    const { data } = await supabase
+      .from('order_refunds')
+      .select('*')
+      .eq('order_id', orderId);
+    return (data || []) as OrderRefund[];
+  };
+
   const handleView = async (order: Order) => {
-    const items = await loadOrderItems(order.id);
-    setSelectedOrder({ ...order, items });
+    const [items, refunds] = await Promise.all([loadOrderItems(order.id), loadOrderRefunds(order.id)]);
+    setSelectedOrder({ ...order, items, refunds });
     setViewDialogOpen(true);
   };
 
   const handleEdit = async (order: Order) => {
-    const items = await loadOrderItems(order.id);
-    setSelectedOrder({ ...order, items });
+    const [items, refunds] = await Promise.all([loadOrderItems(order.id), loadOrderRefunds(order.id)]);
+    setSelectedOrder({ ...order, items, refunds });
     setEditDialogOpen(true);
   };
 
@@ -258,6 +278,9 @@ const Orders = () => {
       }
     }
 
+    // Clean up refund rows linked to this order (no FK cascade)
+    await supabase.from('order_refunds').delete().eq('order_id', id);
+
     const { error } = await supabase.from('orders').delete().eq('id', id);
     if (error) {
       toast.error('فشل في حذف الطلب');
@@ -314,9 +337,10 @@ const Orders = () => {
       
       // Update order totals with description multiplier
       const newSubtotal = items.reduce((sum, item) => sum + calculateItemTotal(item), 0);
+      const refundTotal = (selectedOrder.refunds || []).reduce((sum, r) => sum + calculateItemTotal(r as unknown as OrderItem), 0);
       await supabase.from('orders').update({
         subtotal: newSubtotal,
-        total: newSubtotal - selectedOrder.deposit_amount,
+        total: newSubtotal - refundTotal - selectedOrder.deposit_amount,
       }).eq('id', selectedOrder.id);
       
       loadOrders();
@@ -348,9 +372,10 @@ const Orders = () => {
       
       // Update order totals with description multiplier
       const newSubtotal = items.reduce((sum, item) => sum + calculateItemTotal(item), 0);
+      const refundTotal = (selectedOrder.refunds || []).reduce((sum, r) => sum + calculateItemTotal(r as unknown as OrderItem), 0);
       await supabase.from('orders').update({
         subtotal: newSubtotal,
-        total: newSubtotal - selectedOrder.deposit_amount,
+        total: newSubtotal - refundTotal - selectedOrder.deposit_amount,
       }).eq('id', selectedOrder.id);
       
       loadOrders();
@@ -389,13 +414,97 @@ const Orders = () => {
       
       // Update order totals with description multiplier
       const newSubtotal = items.reduce((sum, item) => sum + calculateItemTotal(item), 0);
+      const refundTotal = (selectedOrder.refunds || []).reduce((sum, r) => sum + calculateItemTotal(r as unknown as OrderItem), 0);
       await supabase.from('orders').update({
         subtotal: newSubtotal,
-        total: newSubtotal - selectedOrder.deposit_amount,
+        total: newSubtotal - refundTotal - selectedOrder.deposit_amount,
       }).eq('id', selectedOrder.id);
       
       loadOrders();
     }
+  };
+
+  const handleAddRefundToOrder = async () => {
+    if (!selectedOrder || !addRefundCode.trim() || !activeVersion) return;
+
+    const { data: product, error: productError } = await supabase
+      .from('products')
+      .select('*')
+      .eq('code', addRefundCode.trim())
+      .eq('version_id', activeVersion.id)
+      .maybeSingle();
+
+    if (productError || !product) {
+      toast.error('المنتج غير موجود');
+      return;
+    }
+
+    const { error } = await supabase.from('order_refunds').insert({
+      order_id: selectedOrder.id,
+      product_id: product.id,
+      product_code: product.code,
+      product_name: product.name,
+      product_description: product.description,
+      price: product.price,
+      quantity: 1,
+      version_id: activeVersion.id,
+    });
+
+    if (error) {
+      toast.error('فشل في إضافة الاسترجاع');
+      return;
+    }
+
+    toast.success('تم إضافة منتج الاسترجاع');
+    const refunds = await loadOrderRefunds(selectedOrder.id);
+    const items = selectedOrder.items || [];
+    const newSubtotal = items.reduce((sum, item) => sum + calculateItemTotal(item), 0);
+    const refundTotal = refunds.reduce((sum, r) => sum + calculateItemTotal(r as unknown as OrderItem), 0);
+    await supabase.from('orders').update({
+      subtotal: newSubtotal,
+      total: newSubtotal - refundTotal - selectedOrder.deposit_amount,
+    }).eq('id', selectedOrder.id);
+    setSelectedOrder({ ...selectedOrder, refunds });
+    setAddRefundCode('');
+    loadOrders();
+  };
+
+  const handleUpdateRefundQuantity = async (refundId: string, quantity: number) => {
+    if (!selectedOrder || quantity < 1) return;
+    const { error } = await supabase.from('order_refunds').update({ quantity }).eq('id', refundId);
+    if (error) {
+      toast.error('فشل في تحديث الكمية');
+      return;
+    }
+    const refunds = await loadOrderRefunds(selectedOrder.id);
+    const items = selectedOrder.items || [];
+    const newSubtotal = items.reduce((sum, item) => sum + calculateItemTotal(item), 0);
+    const refundTotal = refunds.reduce((sum, r) => sum + calculateItemTotal(r as unknown as OrderItem), 0);
+    await supabase.from('orders').update({
+      subtotal: newSubtotal,
+      total: newSubtotal - refundTotal - selectedOrder.deposit_amount,
+    }).eq('id', selectedOrder.id);
+    setSelectedOrder({ ...selectedOrder, refunds });
+    loadOrders();
+  };
+
+  const handleRemoveRefund = async (refundId: string) => {
+    if (!selectedOrder) return;
+    const { error } = await supabase.from('order_refunds').delete().eq('id', refundId);
+    if (error) {
+      toast.error('فشل في حذف الاسترجاع');
+      return;
+    }
+    const refunds = await loadOrderRefunds(selectedOrder.id);
+    const items = selectedOrder.items || [];
+    const newSubtotal = items.reduce((sum, item) => sum + calculateItemTotal(item), 0);
+    const refundTotal = refunds.reduce((sum, r) => sum + calculateItemTotal(r as unknown as OrderItem), 0);
+    await supabase.from('orders').update({
+      subtotal: newSubtotal,
+      total: newSubtotal - refundTotal - selectedOrder.deposit_amount,
+    }).eq('id', selectedOrder.id);
+    setSelectedOrder({ ...selectedOrder, refunds });
+    loadOrders();
   };
 
   const getLogoBase64 = (): Promise<string> => {
@@ -418,11 +527,13 @@ const Orders = () => {
   const generateInvoice = async (order: Order) => {
     if (!order.items) return;
 
+    const refunds = order.refunds ?? (await loadOrderRefunds(order.id));
     const logoBase64 = await getLogoBase64();
 
     // Calculate totals with description multiplier
     const calculatedSubtotal = order.items.reduce((sum, item) => sum + calculateItemTotal(item), 0);
-    const calculatedTotal = calculatedSubtotal - order.deposit_amount;
+    const refundTotal = refunds.reduce((sum, r) => sum + calculateItemTotal(r as unknown as OrderItem), 0);
+    const calculatedTotal = calculatedSubtotal - refundTotal - order.deposit_amount;
 
     const invoiceHtml = `
       <!DOCTYPE html>
@@ -493,8 +604,39 @@ const Orders = () => {
             }).join('')}
           </tbody>
         </table>
+        ${refunds.length > 0 ? `
+          <h3 style="color:#dc2626;margin-top:20px;">منتجات الاسترجاع</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>الكود</th>
+                <th>المنتج</th>
+                <th>السعر</th>
+                <th>الكمية</th>
+                <th>الإجمالي</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${[...refunds].sort((a, b) => a.product_code.localeCompare(b.product_code, undefined, { numeric: true })).map(r => {
+                const m = getDescriptionMultiplier(r.product_description);
+                const dq = m > 1 ? r.quantity * m : r.quantity;
+                const rt = calculateItemTotal(r as unknown as OrderItem);
+                return `
+                  <tr>
+                    <td>${r.product_code}</td>
+                    <td>${r.product_name}</td>
+                    <td>${r.price} ج.م</td>
+                    <td>${dq}</td>
+                    <td>${rt.toFixed(2)} ج.م</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        ` : ''}
         <div class="totals">
           <p>الإجمالي الفرعي: ${calculatedSubtotal.toFixed(2)} ج.م</p>
+          ${refundTotal > 0 ? `<p style="color:#dc2626;">إجمالي الاسترجاع: -${refundTotal.toFixed(2)} ج.م</p>` : ''}
           ${order.deposit_amount > 0 ? `<p>العربون (${order.deposit_method}): -${order.deposit_amount.toFixed(2)} ج.م</p>` : ''}
           <p class="total">المطلوب: ${calculatedTotal.toFixed(2)} ج.م</p>
         </div>
@@ -561,11 +703,14 @@ const Orders = () => {
       return;
     }
 
-    // Load items for all selected orders
+    // Load items + refunds for all selected orders
     const ordersWithItems = await Promise.all(
       ordersToPrint.map(async (order) => {
-        const items = await loadOrderItems(order.id);
-        return { ...order, items };
+        const [items, refunds] = await Promise.all([
+          loadOrderItems(order.id),
+          loadOrderRefunds(order.id),
+        ]);
+        return { ...order, items, refunds };
       })
     );
 
@@ -573,7 +718,8 @@ const Orders = () => {
 
     const allInvoicesHtml = ordersWithItems.map(order => {
       const calculatedSubtotal = order.items.reduce((sum: number, item: OrderItem) => sum + calculateItemTotal(item), 0);
-      const calculatedTotal = calculatedSubtotal - order.deposit_amount;
+      const refundTotal = (order.refunds || []).reduce((sum: number, r: OrderRefund) => sum + calculateItemTotal(r as unknown as OrderItem), 0);
+      const calculatedTotal = calculatedSubtotal - refundTotal - order.deposit_amount;
 
       return `
         <div style="page-break-after: always;">
@@ -620,8 +766,39 @@ const Orders = () => {
               }).join('')}
             </tbody>
           </table>
+          ${(order.refunds || []).length > 0 ? `
+            <h3 style="color:#dc2626;margin-top:20px;">منتجات الاسترجاع</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>الكود</th>
+                  <th>المنتج</th>
+                  <th>السعر</th>
+                  <th>الكمية</th>
+                  <th>الإجمالي</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${[...(order.refunds || [])].sort((a: OrderRefund, b: OrderRefund) => a.product_code.localeCompare(b.product_code, undefined, { numeric: true })).map((r: OrderRefund) => {
+                  const m = getDescriptionMultiplier(r.product_description);
+                  const dq = m > 1 ? r.quantity * m : r.quantity;
+                  const rt = calculateItemTotal(r as unknown as OrderItem);
+                  return `
+                    <tr>
+                      <td>${r.product_code}</td>
+                      <td>${r.product_name}</td>
+                      <td>${r.price} ج.م</td>
+                      <td>${dq}</td>
+                      <td>${rt.toFixed(2)} ج.م</td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          ` : ''}
           <div class="totals">
             <p>الإجمالي الفرعي: ${calculatedSubtotal.toFixed(2)} ج.م</p>
+            ${refundTotal > 0 ? `<p style="color:#dc2626;">إجمالي الاسترجاع: -${refundTotal.toFixed(2)} ج.م</p>` : ''}
             ${order.deposit_amount > 0 ? `<p>العربون (${order.deposit_method}): -${order.deposit_amount.toFixed(2)} ج.م</p>` : ''}
             <p class="total">المطلوب: ${calculatedTotal.toFixed(2)} ج.م</p>
           </div>
@@ -823,13 +1000,48 @@ const Orders = () => {
                   </tbody>
                 </table>
               </div>
+              {selectedOrder.refunds && selectedOrder.refunds.length > 0 && (
+                <div className="border rounded-lg overflow-hidden border-destructive/40">
+                  <div className="bg-destructive/10 px-3 py-2 font-bold text-destructive text-sm">منتجات الاسترجاع</div>
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted">
+                      <tr>
+                        <th className="p-3 text-right">المنتج</th>
+                        <th className="p-3 text-right">السعر</th>
+                        <th className="p-3 text-right">الكمية</th>
+                        <th className="p-3 text-right">الإجمالي</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedOrder.refunds.map((r) => {
+                        const rt = calculateItemTotal(r as unknown as OrderItem);
+                        return (
+                          <tr key={r.id} className="border-t">
+                            <td className="p-3">
+                              <p className="font-medium">{r.product_name}</p>
+                              <p className="text-xs text-muted-foreground">#{r.product_code}</p>
+                            </td>
+                            <td className="p-3">{r.price} ج.م</td>
+                            <td className="p-3">{r.quantity}</td>
+                            <td className="p-3">{rt.toFixed(2)} ج.م</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
               <div className="text-left space-y-1">
                 {(() => {
                   const calcSubtotal = selectedOrder.items?.reduce((sum, item) => sum + calculateItemTotal(item), 0) || 0;
-                  const calcTotal = calcSubtotal - selectedOrder.deposit_amount;
+                  const refundTotal = (selectedOrder.refunds || []).reduce((sum, r) => sum + calculateItemTotal(r as unknown as OrderItem), 0);
+                  const calcTotal = calcSubtotal - refundTotal - selectedOrder.deposit_amount;
                   return (
                     <>
                       <p>الإجمالي الفرعي: {calcSubtotal.toFixed(2)} ج.م</p>
+                      {refundTotal > 0 && (
+                        <p className="text-destructive">إجمالي الاسترجاع: -{refundTotal.toFixed(2)} ج.م</p>
+                      )}
                       {selectedOrder.deposit_amount > 0 && (
                         <p className="text-secondary">العربون: -{selectedOrder.deposit_amount.toFixed(2)} ج.م</p>
                       )}
@@ -1098,7 +1310,8 @@ const Orders = () => {
                   className="w-full"
                   onClick={async () => {
                     const calcSubtotal = selectedOrder.items?.reduce((sum, item) => sum + calculateItemTotal(item), 0) || 0;
-                    const calcTotal = calcSubtotal - selectedOrder.deposit_amount;
+                    const refundTotal = (selectedOrder.refunds || []).reduce((sum, r) => sum + calculateItemTotal(r as unknown as OrderItem), 0);
+                    const calcTotal = calcSubtotal - refundTotal - selectedOrder.deposit_amount;
                     
                     const { error } = await supabase.from('orders').update({
                       customer_name: selectedOrder.customer_name,
@@ -1224,13 +1437,86 @@ const Orders = () => {
                 </div>
               </div>
 
+              {/* Refund Section */}
+              <div className="border rounded-lg p-4 space-y-4 border-destructive/40 bg-destructive/5">
+                <div className="flex items-center gap-2 border-b pb-2">
+                  <Undo2 className="h-5 w-5 text-destructive" />
+                  <h3 className="font-bold text-lg text-destructive">منتجات الاسترجاع</h3>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  يتم خصم إجمالي الاسترجاع من إجمالي الطلب. لا يؤثر الاسترجاع على المخزون.
+                </p>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="أدخل كود المنتج المراد استرجاعه"
+                    value={addRefundCode}
+                    onChange={(e) => setAddRefundCode(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddRefundToOrder(); } }}
+                    dir="ltr"
+                  />
+                  <Button onClick={handleAddRefundToOrder} variant="destructive" className="gap-2">
+                    <Undo2 className="h-4 w-4" />
+                    إضافة استرجاع
+                  </Button>
+                </div>
+                {selectedOrder.refunds && selectedOrder.refunds.length > 0 && (
+                  <div className="border rounded-lg overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted">
+                        <tr>
+                          <th className="p-3 text-right">المنتج</th>
+                          <th className="p-3 text-right">السعر</th>
+                          <th className="p-3 text-right">الكمية</th>
+                          <th className="p-3 text-right">الإجمالي</th>
+                          <th className="p-3 text-right">إجراءات</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedOrder.refunds.map((r) => {
+                          const rt = calculateItemTotal(r as unknown as OrderItem);
+                          return (
+                            <tr key={r.id} className="border-t">
+                              <td className="p-3">
+                                <p className="font-medium">{r.product_name}</p>
+                                <p className="text-xs text-muted-foreground">#{r.product_code}</p>
+                              </td>
+                              <td className="p-3">{r.price} ج.م</td>
+                              <td className="p-3">
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  value={r.quantity}
+                                  onChange={(e) => handleUpdateRefundQuantity(r.id, parseInt(e.target.value) || 1)}
+                                  className="w-20"
+                                  dir="ltr"
+                                />
+                              </td>
+                              <td className="p-3 font-bold text-destructive">-{rt.toFixed(2)} ج.م</td>
+                              <td className="p-3">
+                                <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleRemoveRefund(r.id)}>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
               <div className="text-left space-y-1 border-t pt-4">
                 {(() => {
                   const calcSubtotal = selectedOrder.items?.reduce((sum, item) => sum + calculateItemTotal(item), 0) || 0;
-                  const calcTotal = calcSubtotal - selectedOrder.deposit_amount;
+                  const refundTotal = (selectedOrder.refunds || []).reduce((sum, r) => sum + calculateItemTotal(r as unknown as OrderItem), 0);
+                  const calcTotal = calcSubtotal - refundTotal - selectedOrder.deposit_amount;
                   return (
                     <>
                       <p>الإجمالي الفرعي: {calcSubtotal.toFixed(2)} ج.م</p>
+                      {refundTotal > 0 && (
+                        <p className="text-destructive">إجمالي الاسترجاع: -{refundTotal.toFixed(2)} ج.م</p>
+                      )}
                       {selectedOrder.deposit_amount > 0 && (
                         <p className="text-secondary">العربون: -{selectedOrder.deposit_amount.toFixed(2)} ج.م</p>
                       )}
