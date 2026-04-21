@@ -598,8 +598,39 @@ const Orders = () => {
             }).join('')}
           </tbody>
         </table>
+        ${refunds.length > 0 ? `
+          <h3 style="color:#dc2626;margin-top:20px;">منتجات الاسترجاع</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>الكود</th>
+                <th>المنتج</th>
+                <th>السعر</th>
+                <th>الكمية</th>
+                <th>الإجمالي</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${[...refunds].sort((a, b) => a.product_code.localeCompare(b.product_code, undefined, { numeric: true })).map(r => {
+                const m = getDescriptionMultiplier(r.product_description);
+                const dq = m > 1 ? r.quantity * m : r.quantity;
+                const rt = calculateItemTotal(r as unknown as OrderItem);
+                return `
+                  <tr>
+                    <td>${r.product_code}</td>
+                    <td>${r.product_name}</td>
+                    <td>${r.price} ج.م</td>
+                    <td>${dq}</td>
+                    <td>${rt.toFixed(2)} ج.م</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        ` : ''}
         <div class="totals">
           <p>الإجمالي الفرعي: ${calculatedSubtotal.toFixed(2)} ج.م</p>
+          ${refundTotal > 0 ? `<p style="color:#dc2626;">إجمالي الاسترجاع: -${refundTotal.toFixed(2)} ج.م</p>` : ''}
           ${order.deposit_amount > 0 ? `<p>العربون (${order.deposit_method}): -${order.deposit_amount.toFixed(2)} ج.م</p>` : ''}
           <p class="total">المطلوب: ${calculatedTotal.toFixed(2)} ج.م</p>
         </div>
