@@ -232,6 +232,45 @@ export type Database = {
           },
         ]
       }
+      order_refunds: {
+        Row: {
+          created_at: string
+          id: string
+          order_id: string
+          price: number
+          product_code: string
+          product_description: string | null
+          product_id: string | null
+          product_name: string
+          quantity: number
+          version_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          order_id: string
+          price?: number
+          product_code: string
+          product_description?: string | null
+          product_id?: string | null
+          product_name: string
+          quantity?: number
+          version_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          order_id?: string
+          price?: number
+          product_code?: string
+          product_description?: string | null
+          product_id?: string | null
+          product_name?: string
+          quantity?: number
+          version_id?: string
+        }
+        Relationships: []
+      }
       order_returns: {
         Row: {
           address: string | null
