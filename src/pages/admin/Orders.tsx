@@ -21,6 +21,16 @@ interface OrderItem {
   quantity: number;
 }
 
+interface OrderRefund {
+  id: string;
+  product_id: string | null;
+  product_code: string;
+  product_name: string;
+  product_description: string | null;
+  price: number;
+  quantity: number;
+}
+
 interface Order {
   id: string;
   order_number: number;
@@ -40,6 +50,7 @@ interface Order {
   staff_member_id: string | null;
   staff_member_name: string | null;
   items?: OrderItem[];
+  refunds?: OrderRefund[];
 }
 
 const statusLabels: Record<string, string> = {
