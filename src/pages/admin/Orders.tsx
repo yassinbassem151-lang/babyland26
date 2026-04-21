@@ -95,6 +95,7 @@ const Orders = () => {
   const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
   const [searchCode, setSearchCode] = useState('');
   const [addProductCode, setAddProductCode] = useState('');
+  const [addRefundCode, setAddRefundCode] = useState('');
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
   const [duplicateCustomer, setDuplicateCustomer] = useState({
     customer_name: '',
