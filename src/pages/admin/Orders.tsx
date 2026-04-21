@@ -1431,13 +1431,86 @@ const Orders = () => {
                 </div>
               </div>
 
+              {/* Refund Section */}
+              <div className="border rounded-lg p-4 space-y-4 border-destructive/40 bg-destructive/5">
+                <div className="flex items-center gap-2 border-b pb-2">
+                  <Undo2 className="h-5 w-5 text-destructive" />
+                  <h3 className="font-bold text-lg text-destructive">منتجات الاسترجاع</h3>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  يتم خصم إجمالي الاسترجاع من إجمالي الطلب. لا يؤثر الاسترجاع على المخزون.
+                </p>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="أدخل كود المنتج المراد استرجاعه"
+                    value={addRefundCode}
+                    onChange={(e) => setAddRefundCode(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddRefundToOrder(); } }}
+                    dir="ltr"
+                  />
+                  <Button onClick={handleAddRefundToOrder} variant="destructive" className="gap-2">
+                    <Undo2 className="h-4 w-4" />
+                    إضافة استرجاع
+                  </Button>
+                </div>
+                {selectedOrder.refunds && selectedOrder.refunds.length > 0 && (
+                  <div className="border rounded-lg overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted">
+                        <tr>
+                          <th className="p-3 text-right">المنتج</th>
+                          <th className="p-3 text-right">السعر</th>
+                          <th className="p-3 text-right">الكمية</th>
+                          <th className="p-3 text-right">الإجمالي</th>
+                          <th className="p-3 text-right">إجراءات</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedOrder.refunds.map((r) => {
+                          const rt = calculateItemTotal(r as unknown as OrderItem);
+                          return (
+                            <tr key={r.id} className="border-t">
+                              <td className="p-3">
+                                <p className="font-medium">{r.product_name}</p>
+                                <p className="text-xs text-muted-foreground">#{r.product_code}</p>
+                              </td>
+                              <td className="p-3">{r.price} ج.م</td>
+                              <td className="p-3">
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  value={r.quantity}
+                                  onChange={(e) => handleUpdateRefundQuantity(r.id, parseInt(e.target.value) || 1)}
+                                  className="w-20"
+                                  dir="ltr"
+                                />
+                              </td>
+                              <td className="p-3 font-bold text-destructive">-{rt.toFixed(2)} ج.م</td>
+                              <td className="p-3">
+                                <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleRemoveRefund(r.id)}>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
               <div className="text-left space-y-1 border-t pt-4">
                 {(() => {
                   const calcSubtotal = selectedOrder.items?.reduce((sum, item) => sum + calculateItemTotal(item), 0) || 0;
-                  const calcTotal = calcSubtotal - selectedOrder.deposit_amount;
+                  const refundTotal = (selectedOrder.refunds || []).reduce((sum, r) => sum + calculateItemTotal(r as unknown as OrderItem), 0);
+                  const calcTotal = calcSubtotal - refundTotal - selectedOrder.deposit_amount;
                   return (
                     <>
                       <p>الإجمالي الفرعي: {calcSubtotal.toFixed(2)} ج.م</p>
+                      {refundTotal > 0 && (
+                        <p className="text-destructive">إجمالي الاسترجاع: -{refundTotal.toFixed(2)} ج.م</p>
+                      )}
                       {selectedOrder.deposit_amount > 0 && (
                         <p className="text-secondary">العربون: -{selectedOrder.deposit_amount.toFixed(2)} ج.م</p>
                       )}
