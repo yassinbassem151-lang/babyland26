@@ -697,11 +697,14 @@ const Orders = () => {
       return;
     }
 
-    // Load items for all selected orders
+    // Load items + refunds for all selected orders
     const ordersWithItems = await Promise.all(
       ordersToPrint.map(async (order) => {
-        const items = await loadOrderItems(order.id);
-        return { ...order, items };
+        const [items, refunds] = await Promise.all([
+          loadOrderItems(order.id),
+          loadOrderRefunds(order.id),
+        ]);
+        return { ...order, items, refunds };
       })
     );
 
@@ -709,7 +712,8 @@ const Orders = () => {
 
     const allInvoicesHtml = ordersWithItems.map(order => {
       const calculatedSubtotal = order.items.reduce((sum: number, item: OrderItem) => sum + calculateItemTotal(item), 0);
-      const calculatedTotal = calculatedSubtotal - order.deposit_amount;
+      const refundTotal = (order.refunds || []).reduce((sum: number, r: OrderRefund) => sum + calculateItemTotal(r as unknown as OrderItem), 0);
+      const calculatedTotal = calculatedSubtotal - refundTotal - order.deposit_amount;
 
       return `
         <div style="page-break-after: always;">
