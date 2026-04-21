@@ -994,13 +994,48 @@ const Orders = () => {
                   </tbody>
                 </table>
               </div>
+              {selectedOrder.refunds && selectedOrder.refunds.length > 0 && (
+                <div className="border rounded-lg overflow-hidden border-destructive/40">
+                  <div className="bg-destructive/10 px-3 py-2 font-bold text-destructive text-sm">منتجات الاسترجاع</div>
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted">
+                      <tr>
+                        <th className="p-3 text-right">المنتج</th>
+                        <th className="p-3 text-right">السعر</th>
+                        <th className="p-3 text-right">الكمية</th>
+                        <th className="p-3 text-right">الإجمالي</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedOrder.refunds.map((r) => {
+                        const rt = calculateItemTotal(r as unknown as OrderItem);
+                        return (
+                          <tr key={r.id} className="border-t">
+                            <td className="p-3">
+                              <p className="font-medium">{r.product_name}</p>
+                              <p className="text-xs text-muted-foreground">#{r.product_code}</p>
+                            </td>
+                            <td className="p-3">{r.price} ج.م</td>
+                            <td className="p-3">{r.quantity}</td>
+                            <td className="p-3">{rt.toFixed(2)} ج.م</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
               <div className="text-left space-y-1">
                 {(() => {
                   const calcSubtotal = selectedOrder.items?.reduce((sum, item) => sum + calculateItemTotal(item), 0) || 0;
-                  const calcTotal = calcSubtotal - selectedOrder.deposit_amount;
+                  const refundTotal = (selectedOrder.refunds || []).reduce((sum, r) => sum + calculateItemTotal(r as unknown as OrderItem), 0);
+                  const calcTotal = calcSubtotal - refundTotal - selectedOrder.deposit_amount;
                   return (
                     <>
                       <p>الإجمالي الفرعي: {calcSubtotal.toFixed(2)} ج.م</p>
+                      {refundTotal > 0 && (
+                        <p className="text-destructive">إجمالي الاسترجاع: -{refundTotal.toFixed(2)} ج.م</p>
+                      )}
                       {selectedOrder.deposit_amount > 0 && (
                         <p className="text-secondary">العربون: -{selectedOrder.deposit_amount.toFixed(2)} ج.م</p>
                       )}
