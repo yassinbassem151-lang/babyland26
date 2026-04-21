@@ -411,9 +411,10 @@ const Orders = () => {
       
       // Update order totals with description multiplier
       const newSubtotal = items.reduce((sum, item) => sum + calculateItemTotal(item), 0);
+      const refundTotal = (selectedOrder.refunds || []).reduce((sum, r) => sum + calculateItemTotal(r as unknown as OrderItem), 0);
       await supabase.from('orders').update({
         subtotal: newSubtotal,
-        total: newSubtotal - selectedOrder.deposit_amount,
+        total: newSubtotal - refundTotal - selectedOrder.deposit_amount,
       }).eq('id', selectedOrder.id);
       
       loadOrders();
