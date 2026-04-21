@@ -278,6 +278,9 @@ const Orders = () => {
       }
     }
 
+    // Clean up refund rows linked to this order (no FK cascade)
+    await supabase.from('order_refunds').delete().eq('order_id', id);
+
     const { error } = await supabase.from('orders').delete().eq('id', id);
     if (error) {
       toast.error('فشل في حذف الطلب');
