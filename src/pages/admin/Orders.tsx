@@ -521,11 +521,13 @@ const Orders = () => {
   const generateInvoice = async (order: Order) => {
     if (!order.items) return;
 
+    const refunds = order.refunds ?? (await loadOrderRefunds(order.id));
     const logoBase64 = await getLogoBase64();
 
     // Calculate totals with description multiplier
     const calculatedSubtotal = order.items.reduce((sum, item) => sum + calculateItemTotal(item), 0);
-    const calculatedTotal = calculatedSubtotal - order.deposit_amount;
+    const refundTotal = refunds.reduce((sum, r) => sum + calculateItemTotal(r as unknown as OrderItem), 0);
+    const calculatedTotal = calculatedSubtotal - refundTotal - order.deposit_amount;
 
     const invoiceHtml = `
       <!DOCTYPE html>
