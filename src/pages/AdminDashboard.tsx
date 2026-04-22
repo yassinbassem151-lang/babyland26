@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link, Outlet, useLocation } from 'react-router-dom';
-import { Package, ShoppingCart, Users, BarChart3, LogOut, Wallet, SearchCode, FileText, ImagePlus, Menu, X, Bell, UserCog, ClipboardList, Settings, ListChecks, Truck, DatabaseBackup, Undo2 } from 'lucide-react';
+import { Package, ShoppingCart, Users, BarChart3, LogOut, Wallet, SearchCode, FileText, ImagePlus, Menu, X, Bell, UserCog, ClipboardList, Settings, ListChecks, Truck, DatabaseBackup, Undo2, SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import babylandLogo from '@/assets/babyland-logo.jpg';
 import { VersionProvider } from '@/contexts/VersionContext';
@@ -23,6 +23,7 @@ const allNavItems = [
   { path: '/admin/dashboard/stock-alerts', label: 'تنبيهات المخزون', icon: Bell, permission: 'stock_alerts' },
   { path: '/admin/dashboard/product-report', label: 'تقرير المنتجات', icon: ClipboardList, permission: 'product_report' },
   { path: '/admin/dashboard/staff', label: 'الموظفين', icon: UserCog, permission: 'staff' },
+  { path: '/admin/dashboard/sales-control', label: 'التحكم في البيع', icon: SlidersHorizontal, permission: 'sales_control' },
   { path: '/admin/dashboard/backup', label: 'النسخ الاحتياطي', icon: DatabaseBackup, permission: 'backup' },
 ];
 
@@ -41,6 +42,7 @@ export const PERMISSION_LABELS: Record<string, string> = {
   stock_alerts: 'تنبيهات المخزون',
   product_report: 'تقرير المنتجات',
   staff: 'الموظفين',
+  sales_control: 'التحكم في البيع',
   backup: 'النسخ الاحتياطي',
 };
 

@@ -460,15 +460,16 @@ const Products = () => {
                   />
                 </div>
                 <div>
-                  <Label>الوصف</Label>
+                  <Label>السعر/عدد الثري</Label>
                   <Input
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    placeholder="مثلاً: 250/10"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label>الكمية</Label>
+                    <Label>الكمية (قطع ليس ثريهات)</Label>
                     <Input
                       type="number"
                       value={formData.stock_quantity}

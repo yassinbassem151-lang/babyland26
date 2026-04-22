@@ -184,7 +184,7 @@ const SalesControl = () => {
         </CardContent>
       </Card>
 
-      <Card className="border-2 border-amber-500/30 bg-amber-500/5">
+      <Card className="border-2 border-muted bg-muted/30">
         <CardContent className="pt-6">
           <p className="text-sm">
             <strong>ملاحظة:</strong> الإعدادات تُطبَّق على واجهة العميل (المسح والبحث) ومنع
