@@ -2,11 +2,33 @@ import { Link } from 'react-router-dom';
 import { Trash2, Plus, Minus, ShoppingBag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useCart, calculateItemTotal, getDescriptionMultiplier } from '@/contexts/CartContext';
+import { useCart, calculateItemTotal, getDescriptionMultiplier, CartItem } from '@/contexts/CartContext';
 import ProductImage from '@/components/ProductImage';
+import { useSalesControl, canAddProductToCart } from '@/hooks/use-sales-control';
+import { useVersion } from '@/contexts/VersionContext';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 const CartPreview = () => {
   const { items, removeItem, updateQuantity, subtotal, totalItems } = useCart();
+  const salesControl = useSalesControl();
+  const { activeVersion } = useVersion();
+
+  const handleIncrease = async (item: CartItem) => {
+    if (salesControl.mode !== 'unlimited') {
+      let q = supabase.from('products').select('stock_quantity, description').eq('id', item.productId);
+      if (activeVersion) q = q.eq('version_id', activeVersion.id);
+      const { data } = await q.maybeSingle();
+      if (data) {
+        const check = canAddProductToCart(salesControl, data, 1, item.quantity);
+        if (!check.allowed) {
+          toast.error(check.reason || 'لا يمكن زيادة الكمية');
+          return;
+        }
+      }
+    }
+    updateQuantity(item.id, item.quantity + 1);
+  };
 
   if (items.length === 0) {
     return (
@@ -77,7 +99,7 @@ const CartPreview = () => {
                     variant="outline"
                     size="icon"
                     className="h-7 w-7"
-                    onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                    onClick={() => handleIncrease(item)}
                   >
                     <Plus className="h-3 w-3" />
                   </Button>

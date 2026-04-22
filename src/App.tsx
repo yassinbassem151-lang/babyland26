@@ -24,6 +24,7 @@ import OrdersProgress from "./pages/admin/OrdersProgress";
 import ShippingDetails from "./pages/admin/ShippingDetails";
 import OrdersReturn from "./pages/admin/OrdersReturn";
 import Backup from "./pages/admin/Backup";
+import SalesControl from "./pages/admin/SalesControl";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -56,6 +57,7 @@ const App = () => (
                 <Route path="orders-return" element={<OrdersReturn />} />
                 <Route path="staff" element={<StaffManagement />} />
                 <Route path="backup" element={<Backup />} />
+                <Route path="sales-control" element={<SalesControl />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>

@@ -8,6 +8,7 @@ import { useCart } from '@/contexts/CartContext';
 import { useVersion } from '@/contexts/VersionContext';
 import { toast } from 'sonner';
 import ProductImage from '@/components/ProductImage';
+import { useSalesControl, canAddProductToCart } from '@/hooks/use-sales-control';
 
 interface Product {
   id: string;
@@ -23,8 +24,9 @@ const ProductSearch = () => {
   const [searchCode, setSearchCode] = useState('');
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(false);
-  const { addItem } = useCart();
+  const { addItem, items } = useCart();
   const { activeVersion } = useVersion();
+  const salesControl = useSalesControl();
 
   const handleSearch = async () => {
     if (!searchCode.trim()) {
@@ -63,7 +65,15 @@ const ProductSearch = () => {
 
   const handleAddToCart = () => {
     if (!product) return;
-    
+
+    const alreadyInCart =
+      items.find((it) => it.productId === product.id)?.quantity || 0;
+    const check = canAddProductToCart(salesControl, product, 1, alreadyInCart);
+    if (!check.allowed) {
+      toast.error(check.reason || 'لا يمكن إضافة هذا المنتج للسلة');
+      return;
+    }
+
     addItem({
       productId: product.id,
       code: product.code,
@@ -72,7 +82,7 @@ const ProductSearch = () => {
       price: product.price,
       imageUrl: product.image_url || undefined,
     });
-    
+
     toast.success('تمت إضافة المنتج للسلة');
     setProduct(null);
     setSearchCode('');
