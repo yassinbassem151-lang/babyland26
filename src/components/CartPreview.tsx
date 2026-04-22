@@ -77,7 +77,7 @@ const CartPreview = () => {
                     variant="outline"
                     size="icon"
                     className="h-7 w-7"
-                    onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                    onClick={() => handleIncrease(item)}
                   >
                     <Plus className="h-3 w-3" />
                   </Button>
