@@ -25,6 +25,7 @@ import ShippingDetails from "./pages/admin/ShippingDetails";
 import OrdersReturn from "./pages/admin/OrdersReturn";
 import Backup from "./pages/admin/Backup";
 import SalesControl from "./pages/admin/SalesControl";
+import DailySales from "./pages/admin/DailySales";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -58,6 +59,7 @@ const App = () => (
                 <Route path="staff" element={<StaffManagement />} />
                 <Route path="backup" element={<Backup />} />
                 <Route path="sales-control" element={<SalesControl />} />
+                <Route path="daily-sales" element={<DailySales />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
