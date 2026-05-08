@@ -121,7 +121,7 @@ const DailySales = () => {
                       <span className="font-bold text-primary">#{o.order_number}</span>
                       <span>{o.customer_name}</span>
                     </div>
-                    <span className="font-semibold">{Number(o.total).toFixed(2)} ج.م</span>
+                    <span className="font-semibold">{(Number(o.total) + Number(o.deposit_amount || 0)).toFixed(2)} ج.م</span>
                   </div>
                 ))}
               </div>
