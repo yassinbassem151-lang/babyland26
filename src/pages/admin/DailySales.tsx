@@ -15,6 +15,7 @@ interface OrderRow {
   order_number: number;
   customer_name: string;
   total: number;
+  deposit_amount: number;
   created_at: string;
 }
 
@@ -38,7 +39,7 @@ const DailySales = () => {
 
     const { data } = await supabase
       .from('orders')
-      .select('id, order_number, customer_name, total, created_at')
+      .select('id, order_number, customer_name, total, deposit_amount, created_at')
       .eq('version_id', activeVersion.id)
       .gte('created_at', start.toISOString())
       .lt('created_at', end.toISOString())
@@ -48,7 +49,7 @@ const DailySales = () => {
     setLoading(false);
   };
 
-  const dayTotal = orders.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
+  const dayTotal = orders.reduce((sum, o) => sum + (Number(o.total) || 0) + (Number(o.deposit_amount) || 0), 0);
   const dayLabel = selectedDate
     ? format(selectedDate, 'EEEE d MMMM yyyy', { locale: arEG })
     : '';
@@ -120,7 +121,7 @@ const DailySales = () => {
                       <span className="font-bold text-primary">#{o.order_number}</span>
                       <span>{o.customer_name}</span>
                     </div>
-                    <span className="font-semibold">{Number(o.total).toFixed(2)} ج.م</span>
+                    <span className="font-semibold">{(Number(o.total) + Number(o.deposit_amount || 0)).toFixed(2)} ج.م</span>
                   </div>
                 ))}
               </div>
