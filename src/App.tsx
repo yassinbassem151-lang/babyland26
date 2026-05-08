@@ -25,6 +25,7 @@ import ShippingDetails from "./pages/admin/ShippingDetails";
 import OrdersReturn from "./pages/admin/OrdersReturn";
 import Backup from "./pages/admin/Backup";
 import SalesControl from "./pages/admin/SalesControl";
+import DailySales from "./pages/admin/DailySales";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
