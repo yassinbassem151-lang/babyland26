@@ -44,6 +44,7 @@ export const PERMISSION_LABELS: Record<string, string> = {
   product_report: 'تقرير المنتجات',
   staff: 'الموظفين',
   sales_control: 'التحكم في البيع',
+  daily_sales: 'المبيعات اليومية',
   backup: 'النسخ الاحتياطي',
 };
 
