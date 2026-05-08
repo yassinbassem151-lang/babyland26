@@ -15,6 +15,7 @@ interface OrderRow {
   order_number: number;
   customer_name: string;
   total: number;
+  deposit_amount: number;
   created_at: string;
 }
 
