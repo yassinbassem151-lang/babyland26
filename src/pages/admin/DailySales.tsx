@@ -39,7 +39,7 @@ const DailySales = () => {
 
     const { data } = await supabase
       .from('orders')
-      .select('id, order_number, customer_name, total, created_at')
+      .select('id, order_number, customer_name, total, deposit_amount, created_at')
       .eq('version_id', activeVersion.id)
       .gte('created_at', start.toISOString())
       .lt('created_at', end.toISOString())
