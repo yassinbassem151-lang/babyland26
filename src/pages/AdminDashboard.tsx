@@ -24,6 +24,7 @@ const allNavItems = [
   { path: '/admin/dashboard/product-report', label: 'تقرير المنتجات', icon: ClipboardList, permission: 'product_report' },
   { path: '/admin/dashboard/staff', label: 'الموظفين', icon: UserCog, permission: 'staff' },
   { path: '/admin/dashboard/sales-control', label: 'التحكم في البيع', icon: SlidersHorizontal, permission: 'sales_control' },
+  { path: '/admin/dashboard/daily-sales', label: 'المبيعات اليومية', icon: TrendingUp, permission: 'daily_sales' },
   { path: '/admin/dashboard/backup', label: 'النسخ الاحتياطي', icon: DatabaseBackup, permission: 'backup' },
 ];
 
