@@ -49,7 +49,7 @@ const DailySales = () => {
     setLoading(false);
   };
 
-  const dayTotal = orders.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
+  const dayTotal = orders.reduce((sum, o) => sum + (Number(o.total) || 0) + (Number(o.deposit_amount) || 0), 0);
   const dayLabel = selectedDate
     ? format(selectedDate, 'EEEE d MMMM yyyy', { locale: arEG })
     : '';
