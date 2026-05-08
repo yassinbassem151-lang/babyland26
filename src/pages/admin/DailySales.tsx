@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react';
-import { TrendingUp, ShoppingCart } from 'lucide-react';
+import { TrendingUp, ShoppingCart, CalendarDays } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useVersion } from '@/contexts/VersionContext';
+import { format } from 'date-fns';
+import { arEG } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 interface OrderRow {
   id: string;
@@ -12,52 +18,46 @@ interface OrderRow {
   created_at: string;
 }
 
-interface DayGroup {
-  dateKey: string;
-  dateLabel: string;
-  orders: OrderRow[];
-  total: number;
-}
-
 const DailySales = () => {
   const { activeVersion } = useVersion();
   const isFullAdmin = sessionStorage.getItem('babyland_admin') === 'true';
-  const [days, setDays] = useState<DayGroup[]>([]);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [orders, setOrders] = useState<OrderRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (activeVersion) load();
-  }, [activeVersion]);
+    if (activeVersion && selectedDate) loadDay(selectedDate);
+  }, [activeVersion, selectedDate]);
 
-  const load = async () => {
+  const loadDay = async (date: Date) => {
     if (!activeVersion) return;
     setLoading(true);
+
+    const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const end = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
+
     const { data } = await supabase
       .from('orders')
       .select('id, order_number, customer_name, total, created_at')
       .eq('version_id', activeVersion.id)
+      .gte('created_at', start.toISOString())
+      .lt('created_at', end.toISOString())
       .order('created_at', { ascending: false });
 
-    const map = new Map<string, DayGroup>();
-    (data || []).forEach((o: OrderRow) => {
-      const d = new Date(o.created_at);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      const label = d.toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-      if (!map.has(key)) map.set(key, { dateKey: key, dateLabel: label, orders: [], total: 0 });
-      const g = map.get(key)!;
-      g.orders.push(o);
-      g.total += Number(o.total) || 0;
-    });
-
-    setDays(Array.from(map.values()).sort((a, b) => b.dateKey.localeCompare(a.dateKey)));
+    setOrders(data || []);
     setLoading(false);
   };
+
+  const dayTotal = orders.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
+  const dayLabel = selectedDate
+    ? format(selectedDate, 'EEEE d MMMM yyyy', { locale: arEG })
+    : '';
 
   if (!isFullAdmin) {
     return <div className="text-center py-12 text-muted-foreground">غير مصرح بالوصول</div>;
   }
 
-  if (!activeVersion || loading) {
+  if (!activeVersion) {
     return <div className="text-center py-12 text-muted-foreground">جاري التحميل...</div>;
   }
 
@@ -67,28 +67,54 @@ const DailySales = () => {
         <TrendingUp className="h-6 w-6 text-primary" />
         المبيعات اليومية
       </h1>
-      <p className="text-sm text-muted-foreground">إجمالي مبيعات كل يوم بدون خصم العربون</p>
+      <p className="text-sm text-muted-foreground">إجمالي مبيعات اليوم المختار بدون خصم العربون</p>
 
-      {days.length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-muted-foreground">لا توجد مبيعات</CardContent></Card>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            className={cn(
+              'w-full justify-start text-left font-normal',
+              !selectedDate && 'text-muted-foreground'
+            )}
+          >
+            <CalendarDays className="ml-2 h-4 w-4" />
+            {selectedDate ? dayLabel : 'اختر يوم'}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="single"
+            selected={selectedDate}
+            onSelect={setSelectedDate}
+            initialFocus
+            className={cn('p-3 pointer-events-auto')}
+          />
+        </PopoverContent>
+      </Popover>
+
+      {loading ? (
+        <div className="text-center py-12 text-muted-foreground">جاري التحميل...</div>
       ) : (
-        days.map((day) => (
-          <Card key={day.dateKey} className="border-2 border-primary/20">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>{day.dateLabel}</span>
-                <span className="text-primary text-lg">
-                  {day.total.toFixed(2)} ج.م
-                </span>
-              </CardTitle>
-              <p className="text-sm text-muted-foreground flex items-center gap-1">
-                <ShoppingCart className="h-4 w-4" />
-                {day.orders.length} طلب
-              </p>
-            </CardHeader>
-            <CardContent>
+        <Card className="border-2 border-primary/20">
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span>{dayLabel}</span>
+              <span className="text-primary text-lg">
+                {dayTotal.toFixed(2)} ج.م
+              </span>
+            </CardTitle>
+            <p className="text-sm text-muted-foreground flex items-center gap-1">
+              <ShoppingCart className="h-4 w-4" />
+              {orders.length} طلب
+            </p>
+          </CardHeader>
+          <CardContent>
+            {orders.length === 0 ? (
+              <div className="text-center text-muted-foreground py-6">لا توجد مبيعات في هذا اليوم</div>
+            ) : (
               <div className="space-y-2">
-                {day.orders.map((o) => (
+                {orders.map((o) => (
                   <div key={o.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/40 text-sm">
                     <div className="flex items-center gap-3">
                       <span className="font-bold text-primary">#{o.order_number}</span>
@@ -98,9 +124,9 @@ const DailySales = () => {
                   </div>
                 ))}
               </div>
-            </CardContent>
-          </Card>
-        ))
+            )}
+          </CardContent>
+        </Card>
       )}
     </div>
   );
