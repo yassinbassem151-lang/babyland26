@@ -85,6 +85,7 @@ const AdminDashboard = () => {
     }
 
     setIsAuth(true);
+    maybeAutoDownloadBackup();
   }, [navigate]);
 
   const handleLogout = () => {
