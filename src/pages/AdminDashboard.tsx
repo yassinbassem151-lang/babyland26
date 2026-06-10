@@ -6,6 +6,7 @@ import babylandLogo from '@/assets/babyland-logo.jpg';
 import { VersionProvider } from '@/contexts/VersionContext';
 import VersionSelector from '@/components/VersionSelector';
 import ChangePasswordDialog from '@/components/ChangePasswordDialog';
+import { maybeAutoDownloadBackup } from '@/lib/autoBackup';
 
 // Each nav item has a permission key
 const allNavItems = [
