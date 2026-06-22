@@ -113,18 +113,32 @@ const TOOLS = [
     type: "function",
     function: {
       name: "export_excel",
-      description: "يصدر بيانات كملف Excel يقدر المستخدم يحفظه. ابعت الصفوف كـ array of objects.",
+      description: "يصدر ملف Excel من بيانات حقيقية. ممنوع منعاً باتاً تخترع صفوف. لازم تحدد إما report (تقرير جاهز) أو sql (SELECT). السيرفر هو اللي بيجيب الصفوف ويصدرها — مش انت.",
       parameters: {
         type: "object",
         properties: {
-          filename: { type: "string" },
-          rows: {
-            type: "array",
-            items: { type: "object", additionalProperties: true },
+          filename: { type: "string", description: "اسم الملف بدون امتداد أو بـ .xlsx" },
+          title: { type: "string", description: "عنوان الشيت" },
+          report: {
+            type: "string",
+            enum: [
+              "today_orders",
+              "sales_overview",
+              "weekly_sales",
+              "monthly_sales",
+              "low_stock",
+              "top_products",
+              "top_customers",
+              "deposits_summary",
+              "open_orders",
+              "invoice_export",
+            ],
+            description: "اسم تقرير جاهز يجلب بياناته السيرفر",
           },
-          title: { type: "string", description: "عنوان الملف للعرض" },
+          sql: { type: "string", description: "SELECT مخصص. للمدير الكامل فقط." },
+          limit: { type: "number" },
         },
-        required: ["filename", "rows"],
+        required: ["filename"],
       },
     },
   },
@@ -447,37 +461,40 @@ Deno.serve(async (req) => {
       });
     }
 
-    const systemPrompt = `أنت "بيبي" - المساعد الذكي الصوتي لمحل Babyland لملابس الأطفال.
+    const systemPrompt = `أنت "بيبي" - المساعد الذكي لمحل Babyland لملابس الأطفال (شات مكتوب).
 
 🎯 شخصيتك:
-- بتتكلم مصري بحت زي ما المصريين بيتكلموا في الشغل. مش فصحى أبداً.
-- ودود، سريع، عملي، وذكي. زي شريك شغل بيفهم في التجارة والأرقام.
-- ردودك قصيرة ومفيدة لأنها هتتقري بالصوت. متطولش في الكلام.
+- بتتكلم مصري بحت زي ما المصريين بيتكلموا في الشغل. مش فصحى.
+- ودود، عملي، وذكي. زي شريك شغل بيفهم في التجارة والأرقام.
+- ردودك واضحة ومنظمة. ممكن تستخدم نقاط أو جداول صغيرة في النص لأن الرد بيتعرض مكتوب.
 
 🛠️ قدراتك:
-1. عندك تقارير جاهزة موثوقة عن المنتجات، الطلبات، العملاء، المبيعات، المخزون، والعربون. استخدم get_report أولاً دائماً للأسئلة الشائعة والإكسيل.
-2. لو السؤال محتاج تحليل مخصوص جداً، استخدم run_sql بأسماء الأعمدة الحقيقية فقط.
-2. تقدر تنقل المستخدم لأي صفحة بـ navigate وتعمل highlight لحاجة معينة.
-3. تقدر تصدر Excel لأي تحليل بـ export_excel.
+1. get_report: تقارير جاهزة موثوقة (مبيعات، طلبات، عملاء، مخزون، عربون). استخدمه دايماً للأسئلة الشائعة.
+2. run_sql: SELECT حر لما تحتاج تحليل مخصوص (للمدير الكامل فقط). استخدم أسماء الأعمدة الحقيقية بالظبط.
+3. navigate: ينقل المستخدم لصفحة وممكن يبرز عنصر.
+4. export_excel: يصدر ملف. ممنوع تبعت rows من عندك — لازم تبعت report أو sql والسيرفر بيجيب البيانات الحقيقية.
 
-📊 منهجيتك:
-- لما تتسأل سؤال عن بيانات، استخدم get_report أو run_sql، حلل النتيجة، وارجع رد قصير واضح بالأرقام.
-- لو المستخدم قال "وريني" أو "روح" أو "افتح" - استخدم navigate.
-- لو طلب تحليل أو تقرير أو "اعمللي إكسيل" - هات البيانات الأول بـ get_report/run_sql وبعدها استخدم export_excel بنفس الصفوف. متعملش Excel فاضي لو فيه بيانات.
-- ممكن تستخدم أكتر من tool في نفس الرد (تجيب البيانات بـ run_sql الأول، بعدين تصدرها).
-- لو أداة رجعت error، جرّب get_report بديل أو استعلام أبسط مرة واحدة قبل الاعتذار.
+📊 منهجية التحليل (مهم جداً):
+- لما تتسأل تحليل، شغّل get_report أو run_sql الأول، اقرا الأرقام الفعلية، وبعدها رد بتحليل مبني عليها (مش تخمين).
+- لو السؤال محتاج كذا زاوية (مثلاً "حللي مبيعات الأسبوع")، استدعي أكتر من تقرير/استعلام واجمع النتايج.
+- ارجع بأرقام محددة: إجمالي، متوسط، أعلى/أقل، نسب نمو، أنماط.
+- لو الداتا فاضية، قول كده بصراحة. متخترعش أرقام.
+
+📁 الإكسيل:
+- لما المستخدم يطلب شيت، استدعي export_excel بـ report المناسب (أو sql مخصوص). السيرفر هيملا البيانات.
+- متبعتش rows في export_excel أبداً.
+- لو الداتا فاضية، السيرفر هيرفض. وقتها قول للمستخدم إن مفيش بيانات للفترة دي.
 
 ⚙️ معلومات النظام:
-- ID النسخة النشطة الحالية: ${activeVersionId || "غير محدد"}
-- صلاحيات المستخدم الحالي: ${(permissions || ["all"]).join(", ")}
+- ID النسخة النشطة: ${activeVersionId || "غير محدد"}
+- صلاحيات المستخدم: ${(permissions || ["all"]).join(", ")}
 ${SCHEMA_DOC.replace("{ACTIVE_VERSION}", activeVersionId || "")}
 ${ROUTES}
 
-❗ قواعد:
-- متستخدمش رموز markdown زي ** أو # لأن الرد بيتقري صوت.
-- لو السؤال محتاج بيانات، استخدم أداة قبل ما ترد. متخمنش.
-- لو ملقتش بيانات، قول كده بصراحة.
-- خلي الأرقام واضحة بالعربي (مثلاً: "عندك 45 طلب النهاردة").`;
+❗ قواعد صارمة:
+- ممنوع تخترع أرقام أو صفوف. كل رقم لازم يجي من tool.
+- لو tool رجع error، جرّب get_report بديل أو SQL أبسط مرة واحدة قبل ما تعتذر.
+- ردودك مكتوبة (مش صوت)، فاستخدم تنسيق منظم.`;
 
     const convo = [{ role: "system", content: systemPrompt }, ...messages];
     const actions: any[] = [];
@@ -562,8 +579,37 @@ ${ROUTES}
           actions.push({ type: "navigate", path: args.path, highlight: args.highlight, reason: args.reason });
           result = { ok: true, navigated_to: args.path };
         } else if (name === "export_excel") {
-          actions.push({ type: "export_excel", filename: args.filename, rows: args.rows, title: args.title });
-          result = { ok: true, exported: args.filename, rows_count: args.rows?.length || 0 };
+          const fname = String(args.filename || "تقرير").endsWith(".xlsx") ? args.filename : `${args.filename}.xlsx`;
+          let rows: any[] = [];
+          let err: string | null = null;
+          if (args.report) {
+            if (!canAccessReport(args.report, permissions || [])) {
+              err = "الصلاحية مش كافية للتقرير ده";
+            } else {
+              const r = await getReport(supabase, args.report, activeVersionId, args.limit || 500);
+              const safe = sanitizeForPermissions(args.report, r, permissions || []);
+              if (!safe.ok) err = safe.error;
+              else rows = safe.rows || [];
+            }
+          } else if (args.sql) {
+            if (!isFullAdmin(permissions || [])) err = "SQL مخصص للمدير الكامل فقط";
+            else if (!isSafeSql(args.sql)) err = "SELECT فقط مسموح";
+            else {
+              const { data: r, error } = await supabase.rpc("execute_readonly_sql", { query: args.sql });
+              if (error) err = error.message;
+              else rows = Array.isArray(r) ? r : [];
+            }
+          } else {
+            err = "لازم تحدد report أو sql";
+          }
+          if (err) {
+            result = { ok: false, error: err };
+          } else if (!rows.length) {
+            result = { ok: false, error: "ملقتش بيانات للتصدير، متعملش ملف فاضي" };
+          } else {
+            actions.push({ type: "export_excel", filename: fname, rows, title: args.title || fname.replace(".xlsx", "") });
+            result = { ok: true, exported: fname, rows_count: rows.length };
+          }
         }
 
         convo.push({
