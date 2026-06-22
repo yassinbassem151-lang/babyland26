@@ -194,6 +194,7 @@ const AdminDashboard = () => {
         </aside>
 
         <main className="flex-1 p-6 overflow-auto">
+          <AiHighlightWatcher />
           <Outlet />
         </main>
 
