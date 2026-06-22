@@ -538,9 +538,16 @@ ${ROUTES}
         let result: any = { ok: true };
 
         if (name === "get_report") {
-          result = await getReport(supabase, args.report, activeVersionId, args.limit);
+          if (!canAccessReport(args.report, permissions || [])) {
+            result = { ok: false, error: "الصلاحية اللي معاك مش كافية للتقرير ده" };
+          } else {
+            const rawResult = await getReport(supabase, args.report, activeVersionId, args.limit);
+            result = sanitizeForPermissions(args.report, rawResult, permissions || []);
+          }
         } else if (name === "run_sql") {
-          if (!isSafeSql(args.sql || "")) {
+          if (!isFullAdmin(permissions || [])) {
+            result = { ok: false, error: "التحليل الحر متاح للمدير الكامل فقط. استخدم التقارير المتاحة حسب الصلاحية." };
+          } else if (!isSafeSql(args.sql || "")) {
             result = { ok: false, error: "SELECT فقط مسموح" };
           } else {
             const { data: rows, error } = await supabase.rpc("execute_readonly_sql", { query: args.sql });
