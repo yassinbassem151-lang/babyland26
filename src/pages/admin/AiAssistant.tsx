@@ -130,11 +130,13 @@ const AiAssistant = () => {
         if (e.results[i].isFinal) final += t;
         else interim += t;
       }
-      setInput(final || interim);
-      if (final.trim()) {
-        rec.stop();
-        send(final.trim());
-      }
+      setInput(prev => {
+        const base = prev.trim();
+        const piece = (final || interim).trim();
+        if (!piece) return base;
+        return base ? `${base} ${piece}` : piece;
+      });
+      if (final.trim()) rec.stop();
     };
     rec.onerror = (e: any) => {
       setListening(false);
