@@ -576,8 +576,37 @@ ${ROUTES}
           actions.push({ type: "navigate", path: args.path, highlight: args.highlight, reason: args.reason });
           result = { ok: true, navigated_to: args.path };
         } else if (name === "export_excel") {
-          actions.push({ type: "export_excel", filename: args.filename, rows: args.rows, title: args.title });
-          result = { ok: true, exported: args.filename, rows_count: args.rows?.length || 0 };
+          const fname = String(args.filename || "تقرير").endsWith(".xlsx") ? args.filename : `${args.filename}.xlsx`;
+          let rows: any[] = [];
+          let err: string | null = null;
+          if (args.report) {
+            if (!canAccessReport(args.report, permissions || [])) {
+              err = "الصلاحية مش كافية للتقرير ده";
+            } else {
+              const r = await getReport(supabase, args.report, activeVersionId, args.limit || 500);
+              const safe = sanitizeForPermissions(args.report, r, permissions || []);
+              if (!safe.ok) err = safe.error;
+              else rows = safe.rows || [];
+            }
+          } else if (args.sql) {
+            if (!isFullAdmin(permissions || [])) err = "SQL مخصص للمدير الكامل فقط";
+            else if (!isSafeSql(args.sql)) err = "SELECT فقط مسموح";
+            else {
+              const { data: r, error } = await supabase.rpc("execute_readonly_sql", { query: args.sql });
+              if (error) err = error.message;
+              else rows = Array.isArray(r) ? r : [];
+            }
+          } else {
+            err = "لازم تحدد report أو sql";
+          }
+          if (err) {
+            result = { ok: false, error: err };
+          } else if (!rows.length) {
+            result = { ok: false, error: "ملقتش بيانات للتصدير، متعملش ملف فاضي" };
+          } else {
+            actions.push({ type: "export_excel", filename: fname, rows, title: args.title || fname.replace(".xlsx", "") });
+            result = { ok: true, exported: fname, rows_count: rows.length };
+          }
         }
 
         convo.push({
