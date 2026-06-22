@@ -119,7 +119,7 @@ const AiAssistant = () => {
     }
     const rec = new SR();
     rec.lang = 'ar-EG';
-    rec.continuous = false;
+    rec.continuous = true;
     rec.interimResults = true;
     rec.onstart = () => setListening(true);
     rec.onresult = (e: any) => {
@@ -136,7 +136,6 @@ const AiAssistant = () => {
         if (!piece) return base;
         return base ? `${base} ${piece}` : piece;
       });
-      if (final.trim()) rec.stop();
     };
     rec.onerror = (e: any) => {
       setListening(false);
