@@ -48,22 +48,55 @@ const AiAssistant = () => {
     return [];
   };
 
+  const getVoiceText = (text: string) => {
+    const clean = text.replace(/\s+/g, ' ').trim();
+    if (clean.length <= 220) return clean;
+    const firstSentences = clean.split(/[.!؟]/).filter(Boolean).slice(0, 2).join('. ');
+    return `${(firstSentences || clean).slice(0, 190)}. التفاصيل ظهرتلك على الشاشة.`;
+  };
+
+  const splitSpeech = (text: string) => {
+    const words = text.split(' ');
+    const chunks: string[] = [];
+    let current = '';
+    for (const word of words) {
+      if ((current + ' ' + word).trim().length > 120) {
+        chunks.push(current.trim());
+        current = word;
+      } else {
+        current = `${current} ${word}`.trim();
+      }
+    }
+    if (current) chunks.push(current);
+    return chunks;
+  };
+
   const speak = (text: string): Promise<void> => {
     return new Promise((resolve) => {
       if (muted || !text) return resolve();
       try {
         window.speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(text);
-        u.lang = 'ar-EG';
-        u.rate = 1.05;
-        u.pitch = 1;
         const voices = window.speechSynthesis.getVoices();
-        const arVoice = voices.find(v => v.lang.startsWith('ar'));
-        if (arVoice) u.voice = arVoice;
-        u.onstart = () => setSpeaking(true);
-        u.onend = () => { setSpeaking(false); resolve(); };
-        u.onerror = () => { setSpeaking(false); resolve(); };
-        window.speechSynthesis.speak(u);
+        const arVoice = voices.find(v => v.lang === 'ar-EG') || voices.find(v => v.lang.startsWith('ar'));
+        const chunks = splitSpeech(getVoiceText(text));
+        let index = 0;
+        setSpeaking(true);
+        const playNext = () => {
+          if (index >= chunks.length) {
+            setSpeaking(false);
+            resolve();
+            return;
+          }
+          const u = new SpeechSynthesisUtterance(chunks[index]);
+          u.lang = 'ar-EG';
+          u.rate = 1.18;
+          u.pitch = 1;
+          if (arVoice) u.voice = arVoice;
+          u.onend = () => { index += 1; playNext(); };
+          u.onerror = () => { setSpeaking(false); resolve(); };
+          window.speechSynthesis.speak(u);
+        };
+        playNext();
       } catch {
         setSpeaking(false);
         resolve();
@@ -98,7 +131,7 @@ const AiAssistant = () => {
     setMessages(newMsgs);
     setThinking(true);
     try {
-      const apiMessages = newMsgs.map(m => ({ role: m.role, content: m.content }));
+      const apiMessages = newMsgs.slice(-8).map(m => ({ role: m.role, content: m.content }));
       const { data, error } = await supabase.functions.invoke('ai-assistant', {
         body: {
           messages: apiMessages,
@@ -169,8 +202,8 @@ const AiAssistant = () => {
   const startCall = async () => {
     setInCall(true);
     setMessages([]);
-    await speak('أهلاً! أنا بيبي، مساعدك الذكي. اسألني عن أي حاجة في المحل.');
-    setTimeout(() => startListening(), 200);
+    await speak('جاهز يا باشا، اسألني عن أي حاجة في المحل.');
+    setTimeout(() => startListening(), 150);
   };
 
   const endCall = () => {
@@ -184,7 +217,7 @@ const AiAssistant = () => {
   // Auto-restart listening after assistant speaks
   useEffect(() => {
     if (inCall && !listening && !speaking && !thinking) {
-      const t = setTimeout(() => startListening(), 500);
+      const t = setTimeout(() => startListening(), 250);
       return () => clearTimeout(t);
     }
   }, [inCall, listening, speaking, thinking]);
