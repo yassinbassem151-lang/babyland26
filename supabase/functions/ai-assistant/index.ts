@@ -61,6 +61,7 @@ const TOOLS = [
             type: "string",
             enum: [
               "today_orders",
+              "sales_overview",
               "weekly_sales",
               "monthly_sales",
               "low_stock",
@@ -160,6 +161,26 @@ async function getReport(supabase: any, report: string, activeVersionId: string,
     if (error) return { ok: false, error: error.message };
     const total = (data || []).reduce((sum: number, row: any) => sum + toNumber(row.total), 0);
     return { ok: true, rows: data || [], summary: { orders_count: data?.length || 0, total_sales: total } };
+  }
+
+  if (report === "sales_overview") {
+    const { data, error } = await supabase
+      .from("orders")
+      .select("order_number, customer_name, shop_name, phone, total, deposit_amount, status, staff_member_name, created_at")
+      .eq("version_id", v)
+      .order("created_at", { ascending: false })
+      .limit(5000);
+    if (error) return { ok: false, error: error.message };
+    const rows = compactRows(data || [], safeLimit).map((o: any) => ({ ...o, remaining_amount: toNumber(o.total) - toNumber(o.deposit_amount) }));
+    return {
+      ok: true,
+      rows,
+      summary: {
+        orders_count: data?.length || 0,
+        total_sales: (data || []).reduce((sum: number, row: any) => sum + toNumber(row.total), 0),
+        total_deposits: (data || []).reduce((sum: number, row: any) => sum + toNumber(row.deposit_amount), 0),
+      },
+    };
   }
 
   if (report === "weekly_sales" || report === "monthly_sales") {
@@ -289,6 +310,7 @@ async function getReport(supabase: any, report: string, activeVersionId: string,
 function inferReport(text: string): string | null {
   const t = text.toLowerCase();
   if (/فواتير|فاتورة|invoice/.test(t)) return "invoice_export";
+  if (/كل|كلي|كاملة|اجمالي|إجمالي|total/.test(t) && /مبيع|مبيعات|sales/.test(t)) return "sales_overview";
   if (/النهارده|النهاردة|اليوم|today/.test(t) && /طلب|اوردر|مبيع|sales/.test(t)) return "today_orders";
   if (/اسبوع|أسبوع|week/.test(t)) return "weekly_sales";
   if (/شهر|monthly|month/.test(t)) return "monthly_sales";
@@ -307,6 +329,7 @@ function wantsExcel(text: string): boolean {
 function filenameForReport(report: string): string {
   const names: Record<string, string> = {
     today_orders: "طلبات-النهاردة.xlsx",
+    sales_overview: "ملخص-المبيعات-الكلي.xlsx",
     weekly_sales: "مبيعات-الأسبوع.xlsx",
     monthly_sales: "مبيعات-الشهر.xlsx",
     low_stock: "منتجات-قربت-تخلص.xlsx",
@@ -340,6 +363,7 @@ function reportText(report: string, result: any, exported: boolean): string {
 
   if (!rows.length) return exported ? "ملقتش بيانات للفترة دي، عشان كده مش هينفع أطلع شيت مفيد." : "ملقتش بيانات للفترة دي.";
   if (report === "today_orders") return `عندك ${summary.orders_count} طلب النهارده بإجمالي ${money(summary.total_sales)} جنيه${suffix}`;
+  if (report === "sales_overview") return `إجمالي المبيعات ${summary.orders_count} طلب، بقيمة ${money(summary.total_sales)} جنيه، والعربون ${money(summary.total_deposits)} جنيه${suffix}`;
   if (report === "weekly_sales") return `مبيعات الأسبوع ${summary.orders_count} طلب، بإجمالي ${money(summary.total_sales)} جنيه، والعربون ${money(summary.total_deposits)} جنيه${suffix}`;
   if (report === "monthly_sales") return `مبيعات الشهر ${summary.orders_count} طلب، بإجمالي ${money(summary.total_sales)} جنيه، والعربون ${money(summary.total_deposits)} جنيه${suffix}`;
   if (report === "low_stock") return `عندك ${summary.products_count} منتج محتاج متابعة في المخزون. أقلهم ${rows[0]?.code || ""} - ${rows[0]?.name || ""}${suffix}`;
