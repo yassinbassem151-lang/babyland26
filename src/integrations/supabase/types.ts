@@ -590,6 +590,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      execute_readonly_sql: { Args: { query: string }; Returns: Json }
       get_next_order_number: { Args: { p_version_id: string }; Returns: number }
       reset_order_number_sequence: { Args: never; Returns: undefined }
     }
