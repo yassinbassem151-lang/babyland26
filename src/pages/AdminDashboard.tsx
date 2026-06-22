@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link, Outlet, useLocation } from 'react-router-dom';
-import { Package, ShoppingCart, Users, BarChart3, LogOut, Wallet, SearchCode, FileText, ImagePlus, Menu, X, Bell, UserCog, ClipboardList, Settings, ListChecks, Truck, DatabaseBackup, Undo2, SlidersHorizontal, TrendingUp, Receipt } from 'lucide-react';
+import { Package, ShoppingCart, Users, BarChart3, LogOut, Wallet, SearchCode, FileText, ImagePlus, Menu, X, Bell, UserCog, ClipboardList, Settings, ListChecks, Truck, DatabaseBackup, Undo2, SlidersHorizontal, TrendingUp, Receipt, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import babylandLogo from '@/assets/babyland-logo.jpg';
 import { VersionProvider } from '@/contexts/VersionContext';
 import VersionSelector from '@/components/VersionSelector';
 import ChangePasswordDialog from '@/components/ChangePasswordDialog';
 import { maybeAutoDownloadBackup } from '@/lib/autoBackup';
+import { AiHighlightWatcher } from '@/components/AiHighlightWatcher';
 
 // Each nav item has a permission key
 const allNavItems = [
@@ -28,6 +29,7 @@ const allNavItems = [
   { path: '/admin/dashboard/daily-sales', label: 'المبيعات اليومية', icon: TrendingUp, permission: 'daily_sales' },
   { path: '/admin/dashboard/product-prices', label: 'أسعار المنتجات', icon: Receipt, permission: 'product_prices' },
   { path: '/admin/dashboard/backup', label: 'النسخ الاحتياطي', icon: DatabaseBackup, permission: 'backup' },
+  { path: '/admin/dashboard/ai-assistant', label: '✨ المساعد الذكي', icon: Sparkles, permission: 'ai_assistant' },
 ];
 
 export const PERMISSION_LABELS: Record<string, string> = {
@@ -49,6 +51,7 @@ export const PERMISSION_LABELS: Record<string, string> = {
   daily_sales: 'المبيعات اليومية',
   product_prices: 'أسعار المنتجات',
   backup: 'النسخ الاحتياطي',
+  ai_assistant: 'المساعد الذكي',
 };
 
 export const ALL_PERMISSIONS = Object.keys(PERMISSION_LABELS);
@@ -191,6 +194,7 @@ const AdminDashboard = () => {
         </aside>
 
         <main className="flex-1 p-6 overflow-auto">
+          <AiHighlightWatcher />
           <Outlet />
         </main>
 

@@ -27,6 +27,7 @@ import Backup from "./pages/admin/Backup";
 import SalesControl from "./pages/admin/SalesControl";
 import DailySales from "./pages/admin/DailySales";
 import ProductPrices from "./pages/admin/ProductPrices";
+import AiAssistant from "./pages/admin/AiAssistant";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -62,6 +63,7 @@ const App = () => (
                 <Route path="sales-control" element={<SalesControl />} />
                 <Route path="daily-sales" element={<DailySales />} />
                 <Route path="product-prices" element={<ProductPrices />} />
+                <Route path="ai-assistant" element={<AiAssistant />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
