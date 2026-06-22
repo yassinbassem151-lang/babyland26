@@ -138,6 +138,29 @@ function isSafeSql(sql: string): boolean {
 }
 
 const toNumber = (value: unknown) => Number(value || 0);
+const isFullAdmin = (permissions: string[] = []) => permissions.includes("all");
+
+function canAccessReport(report: string, permissions: string[] = []) {
+  if (isFullAdmin(permissions)) return true;
+  const has = (keys: string[]) => keys.some((key) => permissions.includes(key));
+  if (["sales_overview", "weekly_sales", "monthly_sales", "deposits_summary", "top_customers", "invoice_export"].includes(report)) return false;
+  if (report === "today_orders" || report === "open_orders") return has(["orders", "orders_progress", "daily_sales"]);
+  if (report === "low_stock") return has(["products", "stock_alerts"]);
+  if (report === "top_products") return has(["product_report", "search", "products", "daily_sales"]);
+  return false;
+}
+
+function sanitizeForPermissions(report: string, result: any, permissions: string[] = []) {
+  if (isFullAdmin(permissions) || !result?.ok) return result;
+  const stripMoney = (row: any) => {
+    const { total, subtotal, price, deposit_amount, amount, deposits, sales, total_sales, total_amount, remaining_amount, ...safe } = row || {};
+    return safe;
+  };
+  if (["today_orders", "open_orders", "top_products"].includes(report)) {
+    return { ...result, rows: (result.rows || []).map(stripMoney), summary: { count: result.rows?.length || result.summary?.count || result.summary?.orders_count || 0 } };
+  }
+  return result;
+}
 
 function compactRows(rows: any[] | null | undefined, limit = 50) {
   return (rows || []).slice(0, Math.max(1, Math.min(limit, 200)));
