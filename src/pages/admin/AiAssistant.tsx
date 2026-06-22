@@ -1,16 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mic, MicOff, Phone, PhoneOff, Download, Loader2, Sparkles } from 'lucide-react';
+import { Mic, MicOff, Send, Download, Loader2, Sparkles, Trash2 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
 import { useVersion } from '@/contexts/VersionContext';
 import { Button } from '@/components/ui/button';
-import babylandLogo from '@/assets/babyland-logo.jpg';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 
 type Msg = { role: 'user' | 'assistant'; content: string; actions?: any[] };
 
-// Web Speech types (browser-specific)
 declare global {
   interface Window {
     SpeechRecognition: any;
@@ -18,26 +18,31 @@ declare global {
   }
 }
 
+const STORAGE_KEY = 'babyland_bibi_chat';
+
 const AiAssistant = () => {
   const navigate = useNavigate();
   const { activeVersion } = useVersion();
-  const [inCall, setInCall] = useState(false);
-  const [listening, setListening] = useState(false);
-  const [speaking, setSpeaking] = useState(false);
+  const [messages, setMessages] = useState<Msg[]>(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  });
+  const [input, setInput] = useState('');
   const [thinking, setThinking] = useState(false);
-  const [transcript, setTranscript] = useState('');
-  const [messages, setMessages] = useState<Msg[]>([]);
-  const [muted, setMuted] = useState(false);
+  const [listening, setListening] = useState(false);
   const recognitionRef = useRef<any>(null);
-  const messagesRef = useRef<Msg[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    messagesRef.current = messages;
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-50))); } catch {}
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages]);
 
-  // Get permissions
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
   const getPermissions = (): string[] => {
     const auth = sessionStorage.getItem('babyland_admin');
     if (auth === 'true') return ['all'];
@@ -48,90 +53,38 @@ const AiAssistant = () => {
     return [];
   };
 
-  const getVoiceText = (text: string) => {
-    const clean = text.replace(/\s+/g, ' ').trim();
-    if (clean.length <= 220) return clean;
-    const firstSentences = clean.split(/[.!؟]/).filter(Boolean).slice(0, 2).join('. ');
-    return `${(firstSentences || clean).slice(0, 190)}. التفاصيل ظهرتلك على الشاشة.`;
-  };
-
-  const splitSpeech = (text: string) => {
-    const words = text.split(' ');
-    const chunks: string[] = [];
-    let current = '';
-    for (const word of words) {
-      if ((current + ' ' + word).trim().length > 120) {
-        chunks.push(current.trim());
-        current = word;
-      } else {
-        current = `${current} ${word}`.trim();
-      }
-    }
-    if (current) chunks.push(current);
-    return chunks;
-  };
-
-  const speak = (text: string): Promise<void> => {
-    return new Promise((resolve) => {
-      if (muted || !text) return resolve();
-      try {
-        window.speechSynthesis.cancel();
-        const voices = window.speechSynthesis.getVoices();
-        const arVoice = voices.find(v => v.lang === 'ar-EG') || voices.find(v => v.lang.startsWith('ar'));
-        const chunks = splitSpeech(getVoiceText(text));
-        let index = 0;
-        setSpeaking(true);
-        const playNext = () => {
-          if (index >= chunks.length) {
-            setSpeaking(false);
-            resolve();
-            return;
-          }
-          const u = new SpeechSynthesisUtterance(chunks[index]);
-          u.lang = 'ar-EG';
-          u.rate = 1.18;
-          u.pitch = 1;
-          if (arVoice) u.voice = arVoice;
-          u.onend = () => { index += 1; playNext(); };
-          u.onerror = () => { setSpeaking(false); resolve(); };
-          window.speechSynthesis.speak(u);
-        };
-        playNext();
-      } catch {
-        setSpeaking(false);
-        resolve();
-      }
-    });
-  };
-
   const executeActions = async (actions: any[]) => {
     for (const a of actions) {
       if (a.type === 'navigate' && a.path) {
         navigate(a.path);
         if (a.highlight) {
-          sessionStorage.setItem('ai_highlight', a.highlight);
+          sessionStorage.setItem('ai_highlight', String(a.highlight));
           setTimeout(() => window.dispatchEvent(new CustomEvent('ai-highlight', { detail: a.highlight })), 400);
         }
       } else if (a.type === 'export_excel' && a.rows?.length) {
         try {
           const ws = XLSX.utils.json_to_sheet(a.rows);
           const wb = XLSX.utils.book_new();
-          XLSX.utils.book_append_sheet(wb, ws, a.title?.slice(0, 30) || 'Data');
-          XLSX.writeFile(wb, a.filename.endsWith('.xlsx') ? a.filename : `${a.filename}.xlsx`);
-          toast.success(`تم تنزيل ${a.filename}`);
-        } catch (e: any) {
+          XLSX.utils.book_append_sheet(wb, ws, (a.title || 'Data').slice(0, 30));
+          const fname = a.filename.endsWith('.xlsx') ? a.filename : `${a.filename}.xlsx`;
+          XLSX.writeFile(wb, fname);
+          toast.success(`تم تنزيل ${fname}`);
+        } catch {
           toast.error('فشل تصدير الإكسيل');
         }
       }
     }
   };
 
-  const sendToAI = async (userText: string) => {
-    const newMsgs: Msg[] = [...messagesRef.current, { role: 'user', content: userText }];
+  const send = async (text: string) => {
+    const userText = text.trim();
+    if (!userText || thinking) return;
+    const newMsgs: Msg[] = [...messages, { role: 'user', content: userText }];
     setMessages(newMsgs);
+    setInput('');
     setThinking(true);
     try {
-      const apiMessages = newMsgs.slice(-8).map(m => ({ role: m.role, content: m.content }));
+      const apiMessages = newMsgs.slice(-10).map(m => ({ role: m.role, content: m.content }));
       const { data, error } = await supabase.functions.invoke('ai-assistant', {
         body: {
           messages: apiMessages,
@@ -140,18 +93,17 @@ const AiAssistant = () => {
         },
       });
       if (error) throw error;
-      if (data.error) throw new Error(data.error);
-
-      const text = data.text || 'تمام';
+      if (data?.error) throw new Error(data.error);
+      const replyText = data.text || 'تمام';
       const actions = data.actions || [];
-      setMessages(m => [...m, { role: 'assistant', content: text, actions }]);
+      setMessages(m => [...m, { role: 'assistant', content: replyText, actions }]);
       await executeActions(actions);
-      await speak(text);
     } catch (e: any) {
       toast.error(e.message || 'حصل خطأ');
-      await speak('حصل عندي مشكلة، حاول تاني');
+      setMessages(m => [...m, { role: 'assistant', content: 'حصل عندي مشكلة، حاول تاني.' }]);
     } finally {
       setThinking(false);
+      setTimeout(() => inputRef.current?.focus(), 50);
     }
   };
 
@@ -159,6 +111,10 @@ const AiAssistant = () => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
       toast.error('المتصفح ده مش بيدعم التعرف على الصوت. استخدم Chrome.');
+      return;
+    }
+    if (listening) {
+      recognitionRef.current?.stop();
       return;
     }
     const rec = new SR();
@@ -174,208 +130,161 @@ const AiAssistant = () => {
         if (e.results[i].isFinal) final += t;
         else interim += t;
       }
-      setTranscript(final || interim);
+      setInput(final || interim);
       if (final.trim()) {
         rec.stop();
-        setTranscript('');
-        sendToAI(final.trim());
+        send(final.trim());
       }
     };
     rec.onerror = (e: any) => {
       setListening(false);
-      if (e.error !== 'no-speech' && e.error !== 'aborted') {
-        toast.error('مشكلة في الميكروفون');
-      }
+      if (e.error !== 'no-speech' && e.error !== 'aborted') toast.error('مشكلة في الميكروفون');
     };
-    rec.onend = () => {
-      setListening(false);
-    };
+    rec.onend = () => setListening(false);
     recognitionRef.current = rec;
     try { rec.start(); } catch {}
   };
 
-  const stopListening = () => {
-    recognitionRef.current?.stop();
-    setListening(false);
-  };
-
-  const startCall = async () => {
-    setInCall(true);
+  const clearChat = () => {
     setMessages([]);
-    await speak('جاهز يا باشا، اسألني عن أي حاجة في المحل.');
-    setTimeout(() => startListening(), 150);
+    localStorage.removeItem(STORAGE_KEY);
   };
 
-  const endCall = () => {
-    setInCall(false);
-    stopListening();
-    window.speechSynthesis.cancel();
-    setSpeaking(false);
-    setThinking(false);
-  };
-
-  // Auto-restart listening after assistant speaks
-  useEffect(() => {
-    if (inCall && !listening && !speaking && !thinking) {
-      const t = setTimeout(() => startListening(), 250);
-      return () => clearTimeout(t);
-    }
-  }, [inCall, listening, speaking, thinking]);
-
-  const orbState = thinking ? 'thinking' : speaking ? 'speaking' : listening ? 'listening' : 'idle';
+  const examples = [
+    'كام طلب النهاردة؟',
+    'وريني المنتجات اللي قربت تخلص',
+    'اعمللي إكسيل بمبيعات الأسبوع',
+    'مين أكتر عميل بيشتري؟',
+  ];
 
   return (
-    <div className="min-h-[calc(100vh-3rem)] -m-6 p-6 relative overflow-hidden bg-gradient-to-br from-[#0a0a2e] via-[#1a0a3e] to-[#0a1a3e]">
-      {/* Animated grid background */}
-      <div className="absolute inset-0 opacity-20" style={{
+    <div className="min-h-[calc(100vh-3rem)] -m-6 relative overflow-hidden bg-gradient-to-br from-[#0a0a2e] via-[#1a0a3e] to-[#0a1a3e] flex flex-col">
+      {/* Background fx */}
+      <div className="absolute inset-0 opacity-20 pointer-events-none" style={{
         backgroundImage: 'linear-gradient(rgba(0,200,255,.15) 1px, transparent 1px), linear-gradient(90deg, rgba(255,100,200,.15) 1px, transparent 1px)',
         backgroundSize: '50px 50px',
-        animation: 'gridMove 20s linear infinite',
       }} />
+      <div className="absolute top-10 right-10 w-72 h-72 rounded-full blur-3xl opacity-20 bg-pink-500 animate-pulse pointer-events-none" />
+      <div className="absolute bottom-10 left-10 w-72 h-72 rounded-full blur-3xl opacity-20 bg-cyan-400 animate-pulse pointer-events-none" style={{ animationDelay: '1s' }} />
 
-      {/* Floating orbs */}
-      <div className="absolute top-10 right-10 w-72 h-72 rounded-full blur-3xl opacity-30 bg-pink-500 animate-pulse" />
-      <div className="absolute bottom-10 left-10 w-72 h-72 rounded-full blur-3xl opacity-30 bg-cyan-400 animate-pulse" style={{ animationDelay: '1s' }} />
-
-      <div className="relative z-10 flex flex-col items-center min-h-[calc(100vh-6rem)]">
-        {/* Header */}
-        <div className="text-center mb-8 mt-4">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-xl mb-3">
-            <Sparkles className="h-4 w-4 text-cyan-300" />
-            <span className="text-xs text-white/80 tracking-widest">BABYLAND AI · v1.0</span>
+      {/* Header */}
+      <div className="relative z-10 px-6 py-4 border-b border-white/10 backdrop-blur-xl flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="relative w-12 h-12 rounded-full bg-gradient-to-br from-cyan-400 to-pink-500 flex items-center justify-center shadow-lg shadow-pink-500/30">
+            <Sparkles className="h-6 w-6 text-white" />
+            <span className="absolute inset-0 rounded-full border border-white/30 animate-ping opacity-50" />
           </div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-cyan-300 via-purple-300 to-pink-300 bg-clip-text text-transparent">
-            بيبي - المساعد الذكي
-          </h1>
-          <p className="text-white/60 mt-2 text-sm">اسألني بصوتك عن أي حاجة في المحل</p>
-        </div>
-
-        {/* The Orb */}
-        <div className="relative flex items-center justify-center my-8" style={{ width: 320, height: 320 }}>
-          {/* Outer rotating rings */}
-          <div className={`absolute inset-0 rounded-full border-2 border-cyan-400/30 ${inCall ? 'animate-spin-slow' : ''}`} style={{ animationDuration: '8s' }} />
-          <div className={`absolute inset-4 rounded-full border-2 border-pink-400/30 ${inCall ? 'animate-spin-slow-reverse' : ''}`} style={{ animationDuration: '12s' }} />
-          <div className={`absolute inset-8 rounded-full border border-purple-400/40 ${inCall ? 'animate-spin-slow' : ''}`} style={{ animationDuration: '6s' }} />
-
-          {/* Pulse waves when listening/speaking */}
-          {(listening || speaking) && (
-            <>
-              <div className="absolute inset-0 rounded-full bg-gradient-to-r from-cyan-400/20 to-pink-400/20 animate-ping" />
-              <div className="absolute inset-4 rounded-full bg-gradient-to-r from-cyan-400/30 to-pink-400/30 animate-ping" style={{ animationDelay: '0.3s' }} />
-            </>
-          )}
-
-          {/* Glow */}
-          <div className={`absolute inset-12 rounded-full blur-2xl transition-all duration-500 ${
-            orbState === 'listening' ? 'bg-cyan-400/60' :
-            orbState === 'speaking' ? 'bg-pink-400/60' :
-            orbState === 'thinking' ? 'bg-purple-400/60' :
-            'bg-gradient-to-r from-cyan-400/30 to-pink-400/30'
-          } ${inCall ? 'animate-pulse' : ''}`} />
-
-          {/* Main button */}
-          <button
-            onClick={inCall ? endCall : startCall}
-            disabled={thinking}
-            className={`relative w-56 h-56 rounded-full overflow-hidden shadow-2xl transition-all duration-500 hover:scale-105 active:scale-95 ${
-              inCall ? 'ring-4 ring-pink-400/50' : 'ring-4 ring-cyan-400/40'
-            }`}
-            style={{
-              background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,.9), rgba(255,255,255,.6))',
-              boxShadow: '0 0 80px rgba(0,200,255,.5), 0 0 120px rgba(255,100,200,.3), inset 0 0 40px rgba(255,255,255,.5)',
-            }}
-          >
-            <img src={babylandLogo} alt="Babyland AI" className="w-full h-full object-contain p-2" />
-            {/* Overlay state icon */}
-            <div className={`absolute inset-0 flex items-center justify-center transition-opacity ${inCall ? 'opacity-100 bg-black/30' : 'opacity-0'}`}>
-              {thinking ? (
-                <Loader2 className="h-16 w-16 text-white animate-spin" />
-              ) : (
-                <Mic className={`h-16 w-16 text-white ${listening ? 'animate-pulse' : ''}`} />
-              )}
-            </div>
-          </button>
-        </div>
-
-        {/* Status */}
-        <div className="text-center mb-4 h-8">
-          {!inCall && <p className="text-white/70">اضغط على الدائرة لبدء المكالمة</p>}
-          {inCall && thinking && <p className="text-purple-300 animate-pulse">بفكر...</p>}
-          {inCall && speaking && <p className="text-pink-300">بتكلم...</p>}
-          {inCall && listening && <p className="text-cyan-300">بسمعك... {transcript && `"${transcript}"`}</p>}
-          {inCall && !thinking && !speaking && !listening && <p className="text-white/60">جاهز</p>}
-        </div>
-
-        {/* Controls */}
-        {inCall && (
-          <div className="flex gap-3 mb-6">
-            <Button
-              onClick={() => setMuted(!muted)}
-              variant="outline"
-              size="icon"
-              className="rounded-full border-white/20 bg-white/5 backdrop-blur-xl text-white hover:bg-white/10 w-12 h-12"
-            >
-              {muted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-            </Button>
-            <Button
-              onClick={endCall}
-              size="icon"
-              className="rounded-full bg-red-500 hover:bg-red-600 w-14 h-14 shadow-lg shadow-red-500/50"
-            >
-              <PhoneOff className="h-6 w-6" />
-            </Button>
+          <div>
+            <h1 className="text-xl font-bold bg-gradient-to-r from-cyan-300 via-purple-300 to-pink-300 bg-clip-text text-transparent">
+              بيبي · المساعد الذكي
+            </h1>
+            <p className="text-xs text-white/50">شات نصي مع إدخال صوتي · تحليلات وإكسيل من بيانات حقيقية</p>
           </div>
-        )}
-
-        {/* Transcript / history */}
+        </div>
         {messages.length > 0 && (
-          <div ref={scrollRef} className="w-full max-w-2xl max-h-64 overflow-y-auto space-y-2 p-4 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10">
-            {messages.map((m, i) => (
-              <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`px-4 py-2 rounded-2xl max-w-[80%] text-sm ${
-                  m.role === 'user'
-                    ? 'bg-gradient-to-r from-cyan-500/30 to-cyan-600/30 text-white border border-cyan-400/30'
-                    : 'bg-gradient-to-r from-pink-500/20 to-purple-500/20 text-white border border-pink-400/30'
-                }`}>
-                  {m.content}
-                  {m.actions?.filter((a: any) => a.type === 'export_excel').map((a: any, j: number) => (
-                    <div key={j} className="mt-2 flex items-center gap-1.5 text-xs text-cyan-200">
-                      <Download className="h-3 w-3" /> {a.filename}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
+          <Button onClick={clearChat} variant="ghost" size="sm" className="text-white/60 hover:text-white hover:bg-white/10">
+            <Trash2 className="h-4 w-4 ml-1" /> مسح
+          </Button>
+        )}
+      </div>
+
+      {/* Messages */}
+      <div ref={scrollRef} className="relative z-10 flex-1 overflow-y-auto p-6 space-y-4">
+        {messages.length === 0 && (
+          <div className="max-w-2xl mx-auto text-center mt-10 space-y-6">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-xl">
+              <Sparkles className="h-4 w-4 text-cyan-300" />
+              <span className="text-xs text-white/80 tracking-widest">BABYLAND AI · v2.0</span>
+            </div>
+            <h2 className="text-3xl font-bold text-white">إزيك يا باشا؟ اسألني أي حاجة عن المحل</h2>
+            <p className="text-white/60">اكتب أو دوس على المايك واتكلم. هرد عليك بتحليل من البيانات الحقيقية، ولو طلبت إكسيل هنزّله بصفوف فعلية.</p>
+            <div className="grid grid-cols-2 gap-2 max-w-xl mx-auto">
+              {examples.map((p, i) => (
+                <button
+                  key={i}
+                  onClick={() => send(p)}
+                  className="px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 backdrop-blur-xl border border-white/10 text-white/80 text-sm text-right transition"
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
-        {/* Example prompts */}
-        {!inCall && messages.length === 0 && (
-          <div className="mt-6 grid grid-cols-2 gap-2 max-w-2xl w-full text-sm">
-            {[
-              'كام طلب النهاردة؟',
-              'وريني المنتجات اللي قربت تخلص',
-              'اعمللي إكسيل بمبيعات الأسبوع',
-              'مين أكتر عميل بيشتري؟',
-            ].map((p, i) => (
-              <div key={i} className="px-4 py-3 rounded-xl bg-white/5 backdrop-blur-xl border border-white/10 text-white/70 text-center">
-                "{p}"
-              </div>
-            ))}
+        {messages.map((m, i) => (
+          <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[85%] px-4 py-3 rounded-2xl text-sm leading-relaxed ${
+              m.role === 'user'
+                ? 'bg-gradient-to-r from-cyan-500/30 to-cyan-600/30 text-white border border-cyan-400/30'
+                : 'bg-white/5 backdrop-blur-xl text-white border border-pink-400/20'
+            }`}>
+              {m.role === 'assistant' ? (
+                <div className="prose prose-invert prose-sm max-w-none [&>*]:my-2 [&_table]:border [&_table]:border-white/20 [&_th]:px-2 [&_th]:py-1 [&_td]:px-2 [&_td]:py-1 [&_th]:border [&_th]:border-white/20 [&_td]:border [&_td]:border-white/20">
+                  <ReactMarkdown>{m.content}</ReactMarkdown>
+                </div>
+              ) : (
+                <div className="whitespace-pre-wrap">{m.content}</div>
+              )}
+              {m.actions?.filter((a: any) => a.type === 'export_excel').map((a: any, j: number) => (
+                <div key={j} className="mt-2 flex items-center gap-1.5 text-xs text-cyan-200">
+                  <Download className="h-3 w-3" /> {a.filename} ({a.rows?.length || 0} صف)
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+
+        {thinking && (
+          <div className="flex justify-start">
+            <div className="px-4 py-3 rounded-2xl bg-white/5 backdrop-blur-xl border border-pink-400/20 text-white/70 text-sm flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" /> بفكر وبحلل البيانات...
+            </div>
           </div>
         )}
       </div>
 
-      <style>{`
-        @keyframes gridMove {
-          0% { background-position: 0 0; }
-          100% { background-position: 50px 50px; }
-        }
-        @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @keyframes spin-slow-reverse { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
-        .animate-spin-slow { animation: spin-slow 8s linear infinite; }
-        .animate-spin-slow-reverse { animation: spin-slow-reverse 12s linear infinite; }
-      `}</style>
+      {/* Composer */}
+      <div className="relative z-10 p-4 border-t border-white/10 backdrop-blur-xl">
+        <div className="max-w-4xl mx-auto flex items-end gap-2">
+          <Button
+            type="button"
+            onClick={startListening}
+            disabled={thinking}
+            size="icon"
+            className={`rounded-full h-12 w-12 shrink-0 transition-all ${
+              listening
+                ? 'bg-red-500 hover:bg-red-600 shadow-lg shadow-red-500/50 animate-pulse'
+                : 'bg-gradient-to-br from-cyan-500 to-pink-500 hover:opacity-90 shadow-lg shadow-pink-500/30'
+            }`}
+          >
+            {listening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+          </Button>
+          <Textarea
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                send(input);
+              }
+            }}
+            placeholder={listening ? 'بسمعك...' : 'اكتب سؤالك أو دوس المايك واتكلم...'}
+            disabled={thinking}
+            rows={1}
+            className="flex-1 min-h-12 max-h-32 resize-none bg-white/5 backdrop-blur-xl border-white/10 text-white placeholder:text-white/40 focus-visible:ring-pink-400/50"
+          />
+          <Button
+            onClick={() => send(input)}
+            disabled={!input.trim() || thinking}
+            size="icon"
+            className="rounded-full h-12 w-12 shrink-0 bg-gradient-to-br from-pink-500 to-cyan-500 hover:opacity-90 shadow-lg shadow-cyan-500/30"
+          >
+            <Send className="h-5 w-5" />
+          </Button>
+        </div>
+      </div>
     </div>
   );
 };
