@@ -421,7 +421,13 @@ Deno.serve(async (req) => {
     const directPath = /افتح|روح|وديني|وريني|show|open|go/.test(lastUserText.toLowerCase()) ? inferNavigation(lastUserText) : null;
 
     if (directReport) {
-      const result = await getReport(supabase, directReport, activeVersionId, wantsExcel(lastUserText) ? 200 : 50);
+      if (!canAccessReport(directReport, permissions || [])) {
+        return new Response(JSON.stringify({ text: "الصلاحية اللي معاك مش كافية للتقرير ده.", actions: [] }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const rawResult = await getReport(supabase, directReport, activeVersionId, wantsExcel(lastUserText) ? 200 : 50);
+      const result = sanitizeForPermissions(directReport, rawResult, permissions || []);
       const actions: any[] = [];
       if (directPath) {
         const first = result?.rows?.[0];
